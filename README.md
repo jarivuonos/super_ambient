@@ -1,36 +1,173 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Potilastyötila – FHIR- ja ambient-kirjaamisen demo
 
-## Getting Started
+Paikallinen, suomenkielinen web-demo, jossa kliinikko valitsee **synteettisen** potilaan ja palvelukontaktin ja voi samassa työtilassa:
 
-First, run the development server:
+1. **Kysyä potilastiedoista.** Kysymyksestä tulkitaan skeemavalidoitu tiedontarve. Palvelin muodostaa siitä sallitut FHIR-lukuhaut, ja vastaus sidotaan lähderesursseihin.
+2. **Kirjata harjoitusvastaanoton.** Tarjolla ovat äänitys, liitetty litteraatti, käyntimerkintäluonnos ja rakenteiset ehdotukset.
+3. **Tarkistaa, hyväksyä ja tallentaa** hyväksytyt kohdat HAPIin yhtenä transactionina sekä lukea ne takaisin.
+
+> Ensimmäinen kohde on julkinen HAPI FHIR R4 -testipalvelin (`https://hapi.fhir.org/baseR4`). Se ei tarjoa yksityisyyttä, ja sen sisältö nollataan ajoittain. Käytä vain sovelluksen omaa synteettistä aineistoa ja harjoituspuhetta. Sovellus ei tee hoitopäätöksiä.
+
+## Käynnistys
+
+Vaatimukset: [Bun](https://bun.sh) (projekti käyttää bunia, Node ei ole pakollinen).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+cp .env.example .env.local    # valinnainen; oletukset toimivat
+bun run dev                   # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Tuotantobuild: `bun run build && bun run start`. Jos Nodea ei ole asennettu ja Next ei käynnisty, käytä `bun --bun next dev`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Komento | Tarkoitus |
+| --- | --- |
+| `bun run typecheck` | TypeScript-tarkistus |
+| `bun run lint` | ESLint |
+| `bun run test` | Yksikkö- ja integraatiotestit muistinvaraista FHIR-jäljitelmää vasten (ei verkkoa, ei kirjoituksia HAPIin) |
+| `SMOKE_HAPI=1 bun run smoke:hapi` | **Erillinen smoke-testi, joka kirjoittaa julkiseen HAPIin** synteettisen aineiston ja testitallennuksen |
+| `SMOKE_HAPI=1 APP_URL=http://localhost:3000 bun run e2e:ui` | Selainläpikäynti (Firefox + puppeteer-core) käynnissä olevaa sovellusta vasten; **kirjoittaa HAPIin** testitallennuksen. Edellyttää harjoitusaineistoa. |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Käyttökulku
 
-## Learn More
+1. **Luo harjoitusaineisto HAPIin** (vasen palsta). Toiminto näyttää ensin esikatselun luotavista resursseista. Lähetys tapahtuu vasta erillisellä painalluksella, ja käynnistys ei koskaan kirjoita palvelimeen.
+2. **Näytä demopotilaat**, valitse potilas (esim. *Aino Demolainen*) ja palvelukontakti.
+3. **Kysy potilastiedoista**, esim. ”Näytä viimeisimmät verenpaineet”. Näkymä näyttää:
+   - vastauksen
+   - lähdehavainnot (resurssi, kenttä, mittausaika)
+   - puuttuvat tiedot
+   - avattavan hakusuunnitelman
+4. **Vastaanotto ja kirjaaminen:**
+   1. Äänitä tai liitä litteraatti (”Lataa esimerkkikeskustelu”).
+   2. Valitse ”Muodosta käyntimerkintäluonnos”.
+   3. Tarkista ehdotukset ja valitse kullekin Muokkaa, Hyväksy tai Hylkää. Hyväksy lisäksi käyntimerkintä.
+   4. Valitse ”Esikatsele tallennus”. Näet FHIR-Bundlen ja palvelimen `$validate`-tuloksen.
+   5. Valitse ”Tallenna hyväksytyt HAPIin”. Tila näytetään kahtena erillisenä merkintänä: ”Tallennus hyväksytty palvelimella” ja ”Takaisinluku varmistettu”.
 
-To learn more about Next.js, take a look at the following resources:
+Synteettinen aineisto (`lib/fhir/fixtures.ts`):
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Aino Demolainen:**
+  - kaksi kontaktia
+  - verenpainepaneelit kolmelta päivältä sekä erilliset systolinen ja diastolinen mittaus
+  - laboratoriotulokset: Hb, krea, K ja LDL (koholla)
+  - amlodipiini (MedicationStatement) ja vanha ibuprofeenimääräys
+  - penisilliiniallergia
+  - verenpainetauti
+  - thorax-lausunto, jonka tekstissä on tarkoituksella ”ignore instructions” -kehote. Kehote jää pelkäksi dataksi.
+- **Veikko Testinen:** kontakti, CRP ja astma. Häneltä puuttuvat verenpaineet, lääkitys ja allergiat.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Kaikilla resursseilla on demotunniste (`meta.tag` `urn:super-ambient:demo|synthetic-demo`) ja pysyvä identifier (`urn:super-ambient:demo:identifier`). Luonti käyttää conditional createa (`ifNoneExist`), joten toistettu luonti ei tee duplikaatteja. Palvelimen antamia id:itä ei kovakoodata.
 
-## Deploy on Vercel
+## Arkkitehtuuri
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+app/api/*            Route handlerit (palvelinpuoli: FHIR-yhteys ja avaimet pysyvät täällä)
+components/          React-käyttöliittymä (Workspace, AskView, RecordView)
+lib/fhir/            EhrAdapter, HapiR4Adapter, HTTP-kerros, hakurakentajat, resurssirakentajat, fixturet
+lib/clinical/        Skeemat (zod), ClinicalLanguageAdapter, mock-tulkinta ja -rakenteistaja, faktat, kysy-putki
+lib/transcription/   TranscriptionAdapter
+lib/workflow/        Hyväksyntä ja vanheneminen (review.ts), tallennuspolku (save.ts)
+tests/               Vitest + muistinvarainen FHIR-jäljitelmä
+scripts/smoke-hapi.ts  Erillinen integraatiotesti oikeaa HAPIa vasten
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **`EhrAdapter` / `HapiR4Adapter`** hoitaa seuraavat:
+  - CapabilityStatementin luvun
+  - potilas- ja kontaktihaun
+  - potilaskohtaiset haut, joiden palautetut resurssit tarkistetaan potilasta vasten
+  - resurssin luvun, `$validate`-validoinnin, transactionin ja identifier-haun
+
+  HTTP-kerroksen ominaisuudet:
+  - `application/fhir+json`
+  - aikakatkaisu
+  - enintään 2 uusintaa vain lukupyynnöille
+  - sivu- ja resurssirajat
+  - vastauskoon raja (4 Mt)
+  - sivutuslinkkien ja uudelleenohjausten tarkistus sallittua palvelinta ja polkua vasten
+  - OperationOutcome-käsittely
+
+  Tyhjä, epäonnistunut ja osittainen haku ovat eri tiloja. Muu EHR vaatii oman adapterin ja yhteensopivuustestit.
+- **`ClinicalLanguageAdapter`** tarjoaa kolme toimintoa: `interpretQuestion`, `answer` ja `structureTranscript` sekä valinnaisen `repair`-toiminnon. Rajoitukset:
+  - Mallin tuotos validoidaan aina skeemaa vasten (`strictObject`), ja korjausyrityksiä on enintään yksi.
+  - Malli palauttaa vain tiedontarpeen. URL:ää, potilasta, palvelinta tai HTTP-metodia se ei voi antaa.
+  - Vastauksen luvut tarkistetaan faktoja vasten. Lähteettömät luvut johtavat faktoista koottuun varavastaukseen.
+- **`TranscriptionAdapter`** on rajapinta koko tallenteen litteroinnille. Myöhempää puhevirtaa varten siinä on `openStream` sekä kyvykkyysliput (`streamingPartials`, `diarization`, `timestamps`).
+- **Tallennuspolku** (`lib/workflow/save.ts`) on ainoa kirjoituspolku, eikä hakusuunnittelija tai malli voi kutsua sitä. Palvelin tarkistaa ennen kirjoitusta uudelleen:
+  - litteraattiversion ja lähdeviitteet
+  - jokaisen hyväksynnän sisältötiivisteen
+  - sallitut FHIR-kohteet
+  - potilaan demotunnisteen
+  - Encounterin kuulumisen potilaalle
+  - transaction- ja conditional create -tuen
+
+  Lisäksi tallennettavan tilannevedoksen täytyy täsmätä esikatseltuun. Varsinainen kirjoitus etenee näin:
+  1. Kirjoitus tehdään `Bundle.type=transaction` -pyyntönä, ja jokaisella resurssilla on pysyvä identifier sekä `ifNoneExist`. Sama tilannevedos ei siksi luo duplikaatteja.
+  2. Transaction-vastauksen entryt tarkistetaan yksitellen.
+  3. Aikakatkaisun jälkeen tila tarkistetaan identifierien avulla ennen uusintaa.
+  4. Takaisinluku on oma vaiheensa, ja sen virhe ei tarkoita tallennuksen epäonnistumista.
+
+### FHIR-rakenteet (v1)
+
+| Hyväksytty sisältö | Resurssi |
+| --- | --- |
+| Verenpaine | `Observation`: paneeli 85354-9 ja komponentit 8480-6/8462-4, `mm[Hg]` |
+| Syke | `Observation` 8867-4, `/min` |
+| Lämpö | `Observation` 8310-5, `Cel` |
+| Oire, ongelma tai diagnoosiepäily | `Condition`: `verificationStatus` säilyttää epävarmuuden (epäily → `provisional`). Koodi vain tunnetusta luettelosta, muuten pelkkä teksti. |
+| Käyntimerkintä | `DocumentReference`: `status=current`, `docStatus=preliminary`, teksti base64-liitteenä, `subject` ja `context.encounter`. Ei keksittyä tekijää. |
+| Lääkitys- ja allergiamaininnat, suunnitelma, sukuanamneesi, kielteiset löydökset | Vain käyntimerkintään. v1 ei päivitä lääkelistaa tai allergioita eikä tee tilauksia. |
+
+Keskustelusta poimituissa mittauksissa **`effective[x]` jätetään pois**, koska mittausaikaa ei ilmaistu, eikä sitä keksitä. Tästä syystä resursseihin ei merkitä vital-signs-profiilia. Mittauksen ajallisuus ja lähdelainaus kirjataan `note`-kenttään. Resursseihin ei lisätä standardiin kuulumattomia kenttiä. Jäljitettävyys ehdotuksesta tallennettuun resurssiin säilyy sovelluksen tilassa ja identifierissä.
+
+## Mallipalvelu ja litterointi
+
+- **Oletus on `LLM_PROVIDER=mock`.** Tila on sääntöpohjainen, eikä se ole kielimalli. Se tunnistaa rajatun joukon suomenkielisiä ilmauksia, kuten RR-arvot, sykkeen, lämmön, kiellot, epäilyt, läheisen tiedot, lääke-, allergia- ja toimenpidemaininnat sekä suunnitelman. Käyttöliittymä merkitsee tilan selvästi.
+- **”Liitä mallivastaus käsin”** antaa pyyntöpohjan, jossa on JSON-skeema ja numeroidut puheenvuorot. Voit ajaa pyynnön valitsemallasi mallilla ja liittää vastauksen, joka käy läpi saman skeema- ja lähdeviitetarkistuksen.
+- **Jev (`LLM_PROVIDER=jev`)** on varattu. Adapteria ei ole toteutettu, koska palveluntarjoajasta, API:sta ja ominaisuuksista ei ollut dokumentaatiota. Endpointia ei ole arvattu eikä OpenAI-yhteensopivuutta oletettu. Kun Jev on valittu, käyttöliittymä kertoo, ettei palvelu ole käytössä. Kytkentä tehdään uutena `ClinicalLanguageAdapter`-toteutuksena tiedostoon `lib/clinical/language-adapter.ts` (`createLanguageAdapter`). Avain luetaan vain palvelimella muuttujasta `LLM_API_KEY`.
+- **Litterointi (`TRANSCRIPTION_PROVIDER=none`):** selaimessa voi äänittää, kuunnella ja poistaa harjoitusäänitteen. ”Litteroi äänite” kertoo, ettei palvelua ole asetettu, joten litteraatti liitetään käsin. Ääntä ei lähetetä HAPIin, ja se säilyy vain selainistunnon muistissa. Reaaliaikainen litterointi ja puhujien erottelu **eivät ole toteutettuja**.
+
+## Testit
+
+`bun run test` (75 testiä) kattaa:
+
+- **Hakurakentajat:** koodaus, potilasrajaus, kontaktirajaus ja injektioyritykset.
+- **Skeemavalidointi** ja korjausyritysten raja.
+- **Resurssirakentajat:**
+  - UCUM-yksiköt
+  - ei keksittyä aikaa
+  - ei vapaita kenttiä
+  - `ifNoneExist` ja urn:uuid
+- **Hyväksynnän vanheneminen:** ehdotuksen tai käyntimerkinnän muokkaus, litteraatin muutos ja väärennetty hyväksyntä.
+- **Kaikki §13:n mallikeskustelut:**
+  - RR, syke ja lämpö
+  - ”Ei kuumetta. Epäilen appendisiittia.”
+  - kaksi verenpainetta
+  - isän diabetes
+- **Haku:**
+  - ”ignore instructions” jää dataksi
+  - OperationOutcome
+  - sivutusraja
+  - ulkopuolinen sivutuslinkki
+  - yhteyskatko
+  - toisen potilaan resurssit suodattuvat pois
+- **Tallennus:**
+  - kaksinkertainen tallennus ilman duplikaatteja
+  - väärä kontakti
+  - vanhan ehdotuksen tallennus uudelle potilaalle
+  - puuttuva transaction-tuki
+  - aikakatkaisun jälkeinen identifier-tarkistus
+  - takaisinluvun virhe
+
+Käyttöliittymä ohittaa vanhentuneet vastaukset sukupolvilaskurilla ja AbortControllerilla, ja potilaan tai kontaktin vaihto nollaa näkymät.
+
+## Tiedossa olevat rajoitukset ja jatkokehitys
+
+- Mock-rakenteistaja on sääntöpohjainen ja hauras. Se ei ymmärrä vapaata kieltä laajasti, ja oikea kielimalli (Jev) on kytkettävä dokumentaation perusteella.
+- Litterointipalvelua ei ole. Seuraavat askeleet ovat koko tallenteen litterointi ja sen jälkeen puhevirta, osittaiset tulokset ja puhujien erottelu (`openStream`).
+- Kirjoitukset rajautuvat käyntimerkintään, vitaalimittauksiin ja Conditioniin. Lääkitys- ja allergialistojen päivitys, tilaukset (ServiceRequest) ja FamilyMemberHistory ovat myöhempiä vaiheita.
+- Profiilit, terminologiapalvelin, THL-yhteensopivuus, tunnistautuminen ja allekirjoitusprosessi puuttuvat. Koodiluettelo (`lib/clinical/codes.ts`) on pieni käsin tarkistettu lista.
+- Mittausajan voisi myöhemmin ottaa litterointipalvelun aikaleimoista, jos ne ovat todellisia.
+- Potilashaku näyttää enintään 20 osumaa ilman ”seuraava sivu” -toimintoa; sivutus on toteutettu adapterissa, mutta käyttöliittymästä se puuttuu.
+- Hakuehdot tarkistetaan viimeisintä onnistunutta CapabilityStatementia vasten; ennen ensimmäistä yhteystarkistusta tarkistus ohitetaan.
+- Kysy-näkymän yhteenveto käyttää palvelimen kelloa ”viimeiset 90 vrk” -rajaukseen.
+- Julkisen HAPIn tallennus on tarkoitettu vain demoon, ja aineisto voi kadota palvelimen nollauksessa. Luo silloin harjoitusaineisto uudelleen.
