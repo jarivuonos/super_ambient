@@ -2,6 +2,7 @@ import type { z } from "zod";
 import type { Fact } from "./facts";
 import { JevError, JevClient } from "./jev-client";
 import { interpretWithJev, type InterpretDiagnostics } from "./jev-interpreter";
+import { StructuringLimitError, structureWithJev, type StructureDiagnostics } from "./jev-structurer";
 import { mockAnswer, mockInterpretQuestion } from "./mock-language";
 import { mockStructure } from "./mock-structurer";
 import type { InfoNeed, Transcript } from "./schemas";
@@ -11,11 +12,22 @@ import type { JevSettingsResult } from "../jev-settings";
 export type LanguageAdapterKind = "mock" | "model" | "hybrid" | "unavailable";
 
 /** Kuka kunkin toiminnon oikeasti tekee. Käyttöliittymä näyttää tämän rehellisesti. */
-export type CapabilitySource = "model" | "mock" | "deterministic" | "unavailable";
+export type CapabilitySource =
+  | "model" // malli tekee toiminnon
+  | "mock" // sovelluksen sääntöpohjainen mock
+  | "deterministic" // sovelluksen oma koonti, ei mallia
+  | "classified" // Jev luokittelee, sovellus poimii lainaukset ja arvot
+  | "unavailable";
 export interface AdapterCapabilities {
   interpretQuestion: CapabilitySource;
   answer: CapabilitySource;
   structureTranscript: CapabilitySource;
+}
+
+export interface StructureContext {
+  signal?: AbortSignal;
+  /** Tekniset tiedot rakenteistuksesta (lauseita, rajat alittaneet arviot, tokenit). */
+  onDiagnostics?: (d: StructureDiagnostics) => void;
 }
 
 export interface InterpretContext {
@@ -38,7 +50,7 @@ export interface ClinicalLanguageAdapter {
   interpretQuestion(question: string, ctx: InterpretContext): Promise<unknown>;
   /** Vastaus vain annettujen faktojen perusteella. Faktat ovat dataa, eivät ohjeita. */
   answer(question: string, need: InfoNeed, facts: Fact[], missing: string[]): Promise<string>;
-  structureTranscript(transcript: Transcript): Promise<unknown>;
+  structureTranscript(transcript: Transcript, ctx?: StructureContext): Promise<unknown>;
   /** Pyytää korjattua vastausta, kun skeemavalidointi epäonnistui (vain oikeat mallit). */
   repair?(previous: unknown, errors: string): Promise<unknown>;
 }
@@ -47,6 +59,14 @@ export class LanguageServiceUnavailable extends Error {
   constructor(message: string) {
     super(message);
     this.name = "LanguageServiceUnavailable";
+  }
+}
+
+/** Pyyntö hylättiin rajan vuoksi (ei palvelun vika). */
+export class LanguageRequestRejected extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "LanguageRequestRejected";
   }
 }
 
@@ -68,16 +88,31 @@ export class MockLanguageAdapter implements ClinicalLanguageAdapter {
 }
 
 /**
- * Jev tulkitsee kysymyksen (luokittelu). Jev ei kirjoita tekstiä, joten vastauksen kokoaa
- * sovellus suoraan haetuista faktoista ja litteraatin rakenteistus on toistaiseksi mock-sääntöjä.
+ * Jev on luokittelija, ei tekstiä tuottava malli:
+ *  - kysymyksen tulkinta: Jev (vain kysymysteksti lähetetään),
+ *  - vastaus: sovelluksen oma koonti haetuista faktoista,
+ *  - litteraatin rakenteistus: oletuksena mock-säännöt; `structuring: "jev"` (LLM_STRUCTURING=jev)
+ *    lähettää litteraatin lauseet Jevin luokiteltaviksi, ja sovellus poimii lainaukset ja arvot.
  */
 export class JevLanguageAdapter implements ClinicalLanguageAdapter {
   readonly name = "Jev";
   readonly kind = "hybrid" as const;
-  readonly description =
-    "Kysymysten tulkinta: Jev (vain kysymysteksti lähetetään). Vastaus koostetaan suoraan haetuista resursseista, ja litteraatin rakenteistus on mock-sääntöpohjainen.";
-  readonly capabilities: AdapterCapabilities = { interpretQuestion: "model", answer: "deterministic", structureTranscript: "mock" };
-  constructor(private client: Pick<JevClient, "ask">) {}
+  readonly description: string;
+  readonly capabilities: AdapterCapabilities;
+  private structuring: "jev" | "mock";
+  private concurrency: number;
+  constructor(
+    private client: Pick<JevClient, "ask"> & { model?: string },
+    opts: { structuring?: "jev" | "mock"; concurrency?: number } = {},
+  ) {
+    this.structuring = opts.structuring ?? "mock";
+    this.concurrency = opts.concurrency ?? 1;
+    this.capabilities = { interpretQuestion: "model", answer: "deterministic", structureTranscript: this.structuring === "jev" ? "classified" : "mock" };
+    this.description =
+      this.structuring === "jev"
+        ? "Kysymysten tulkinta: Jev (vain kysymysteksti lähetetään). Litteraatin rakenteistus: Jev luokittelee lauseet ja sovellus poimii lainaukset ja arvot (litteraatin lauseet lähetetään Typesafelle). Vastaus koostetaan suoraan haetuista resursseista."
+        : "Kysymysten tulkinta: Jev (vain kysymysteksti lähetetään). Vastaus koostetaan suoraan haetuista resursseista, ja litteraatin rakenteistus on mock-sääntöpohjainen (litteraattia ei lähetetä mihinkään).";
+  }
   async interpretQuestion(question: string, ctx: InterpretContext) {
     try {
       return await interpretWithJev(this.client, question, ctx);
@@ -90,8 +125,15 @@ export class JevLanguageAdapter implements ClinicalLanguageAdapter {
   async answer(_question: string, need: InfoNeed, facts: Fact[], missing: string[]) {
     return mockAnswer(need, facts, missing);
   }
-  async structureTranscript(t: Transcript) {
-    return mockStructure(t);
+  async structureTranscript(t: Transcript, ctx?: StructureContext) {
+    if (this.structuring !== "jev") return mockStructure(t);
+    try {
+      return await structureWithJev(this.client, t, { concurrency: this.concurrency, signal: ctx?.signal, onDiagnostics: ctx?.onDiagnostics });
+    } catch (e) {
+      if (e instanceof JevError) throw new LanguageServiceUnavailable(e.message);
+      if (e instanceof StructuringLimitError) throw new LanguageRequestRejected(e.message);
+      throw e;
+    }
   }
 }
 
@@ -115,7 +157,7 @@ export class UnavailableLanguageAdapter implements ClinicalLanguageAdapter {
 }
 
 export function createLanguageAdapter(
-  cfg: { provider: "mock" | "jev" | "none" },
+  cfg: { provider: "mock" | "jev" | "none"; structuring?: "jev" | "mock"; concurrency?: number },
   jev?: JevSettingsResult,
   fetchImpl?: typeof fetch,
 ): ClinicalLanguageAdapter {
@@ -124,7 +166,7 @@ export function createLanguageAdapter(
     if (!jev?.ok) {
       return new UnavailableLanguageAdapter("Jev", `LLM_PROVIDER=jev, mutta Jev-yhteyttä ei voitu muodostaa: ${jev?.reason ?? "asetukset puuttuvat"}`);
     }
-    return new JevLanguageAdapter(new JevClient({ ...jev.settings, fetchImpl }));
+    return new JevLanguageAdapter(new JevClient({ ...jev.settings, fetchImpl }), { structuring: cfg.structuring, concurrency: cfg.concurrency });
   }
   return new UnavailableLanguageAdapter("Ei mallipalvelua", "Mallipalvelu ei ole käytössä (LLM_PROVIDER=none).");
 }

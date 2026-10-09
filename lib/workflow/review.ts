@@ -172,8 +172,8 @@ export function finalizeStructuring(raw: unknown, transcript: Transcript): Final
 
     const rule = allowedTarget(p);
     if (rule.reason && p.targetResourceType) appIssues.push(rule.reason);
-    // Malli voi jättää kohteen pois, mutta ei laajentaa sitä.
-    p.targetResourceType = p.targetResourceType === null && p.type !== "bp" && p.type !== "heart-rate" && p.type !== "temperature" ? null : rule.target;
+    // Ehdotus voi jättää kohteen pois (esim. aiempi mittaus), mutta sitä ei voi laajentaa säännöistä huolimatta.
+    p.targetResourceType = p.targetResourceType === null ? null : rule.target;
 
     if (p.type === "condition") {
       if (p.value.verificationStatus === "confirmed") {

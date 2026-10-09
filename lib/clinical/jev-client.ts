@@ -5,6 +5,9 @@
 
 import { z } from "zod";
 
+/** Jev hyväksyy tilana merkkijonon, JSON-olion tai taulukon. */
+export type JevState = string | Record<string, unknown> | unknown[];
+
 export type JevQuestionType = "choice" | "score" | "noul";
 
 export interface JevQuestion {
@@ -102,7 +105,7 @@ export class JevClient {
     return this.opts.model;
   }
 
-  async ask(state: string, questions: Record<string, JevQuestion>, signal?: AbortSignal): Promise<JevResponse> {
+  async ask(state: JevState, questions: Record<string, JevQuestion>, signal?: AbortSignal): Promise<JevResponse> {
     let last: JevError | undefined;
     for (let attempt = 0; attempt <= this.retries; attempt++) {
       if (signal?.aborted) throw new JevError("aborted");
@@ -121,7 +124,7 @@ export class JevClient {
     throw last!;
   }
 
-  private async once(state: string, questions: Record<string, JevQuestion>, outer?: AbortSignal): Promise<JevResponse> {
+  private async once(state: JevState, questions: Record<string, JevQuestion>, outer?: AbortSignal): Promise<JevResponse> {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), this.timeoutMs);
     const onAbort = () => ctrl.abort();

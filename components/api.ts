@@ -69,7 +69,9 @@ export type AskResult = AskResponse & { patientId: string; encounterId: string |
 
 export interface StructureResponse {
   source: string;
-  sourceKind: "mock" | "model" | "pasted" | "unavailable" | "deterministic";
+  sourceKind: "mock" | "model" | "pasted" | "unavailable" | "deterministic" | "classified";
+  /** Rakenteistuksen tekniset tiedot (vain Jev-luokittelussa). */
+  diagnostics?: unknown;
   transcriptVersion: string;
   note: NoteDraft;
   proposals: Proposal[];

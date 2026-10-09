@@ -1,5 +1,5 @@
 import "server-only";
-import { DEFAULT_JEV_MODEL, readJevSettings, type JevSettingsResult } from "./jev-settings";
+import { DEFAULT_JEV_MODEL, readJevSettings, readStructuringSettings, type JevSettingsResult } from "./jev-settings";
 
 // Palvelinpuolen asetukset. Avaimet luetaan vain ympäristömuuttujista.
 
@@ -11,6 +11,9 @@ export interface AppConfig {
     model?: string;
     endpoint?: string;
     hasApiKey: boolean;
+    /** Rakenteistuksen tekijä; "jev" vain kun LLM_PROVIDER=jev ja LLM_STRUCTURING=jev. */
+    structuring: "jev" | "mock";
+    concurrency: number;
   };
   transcription: {
     provider: "none" | string;
@@ -34,6 +37,8 @@ export function getConfig(): AppConfig {
       model: process.env.LLM_MODEL || (provider === "jev" ? DEFAULT_JEV_MODEL : undefined),
       endpoint: process.env.LLM_ENDPOINT || undefined,
       hasApiKey: Boolean(process.env.TYPESAFE_API_KEY || process.env.LLM_API_KEY),
+      structuring: provider === "jev" ? readStructuringSettings(process.env).structuring : "mock",
+      concurrency: readStructuringSettings(process.env).concurrency,
     },
     transcription: {
       provider: (process.env.TRANSCRIPTION_PROVIDER ?? "none").trim().toLowerCase() || "none",

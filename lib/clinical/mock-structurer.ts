@@ -3,55 +3,12 @@
 // ilman mallipalvelua. Tulos kulkee saman skeemavalidoinnin ja tarkistuksen läpi kuin
 // oikean mallin vastaus.
 
-import { findKnownCondition, VITAL_CODES } from "./codes";
-import type { ModelProposal, NoteDraft, Speaker, StructuringOutput, Transcript, TranscriptSegment } from "./schemas";
+import { findKnownCondition } from "./codes";
+import { extractMeasurements, toMeasurementProposal } from "./measurements";
+import type { ModelProposal, NoteDraft, StructuringOutput, Transcript } from "./schemas";
+import { splitSentences, type Sentence } from "./sentences";
+import { FAMILY_RE, L, NE, SUSPECT_RE, SYMPTOMS, TIME_RE, YEAR_RE, findLocation, negatedBefore, speakerLabel } from "./text-rules";
 
-interface Sentence {
-  seg: TranscriptSegment;
-  start: number; // segmentin sisäinen alku
-  end: number;
-  text: string;
-  isQuestion: boolean;
-}
-
-const L = "\\p{L}";
-const NB = `(?<!${L})`; // sanan alku
-const NE = `(?!${L})`; // sanan loppu
-
-const FAMILY_RE = new RegExp(`${NB}(isä|äiti|äidi|veli|velje|sisko|sisar|mummo|mummi|isoisä|isoäiti|isovanhem|vaari|suvussa|sukulais|serkku|eno|täti|setä)`, "iu");
-const NEG_RE = new RegExp(`${NB}(ei|eikä|en|et|emme|ette|eivät|ilman)${NE}`, "iu");
-const QUESTION_WORD_RE = /^(onko|onks|oliko|mikä|mitä|miten|milloin|kuinka|missä|käytätkö|onko teillä)\b/iu;
-
-const SYMPTOMS: { re: RegExp; name: string; partitive: string }[] = [
-  { re: /kip(u|ua|uja|eä|ea)|särky|särkee|särkyä|säryt/iu, name: "kipu", partitive: "kipua" },
-  { re: /kuume/iu, name: "kuume", partitive: "kuumetta" },
-  { re: /yskä|yski|yskii/iu, name: "yskä", partitive: "yskää" },
-  { re: /pahoinvoi/iu, name: "pahoinvointi", partitive: "pahoinvointia" },
-  { re: /oksen/iu, name: "oksentelu", partitive: "oksentelua" },
-  { re: /huimaa|huimau/iu, name: "huimaus", partitive: "huimausta" },
-  { re: /hengenahdist|hengästy/iu, name: "hengenahdistus", partitive: "hengenahdistusta" },
-  { re: /ripul/iu, name: "ripuli", partitive: "ripulia" },
-  { re: /väsyny|väsymy/iu, name: "väsymys", partitive: "väsymystä" },
-];
-
-const LOCATION_RE = new RegExp(
-  `${NB}((?:oikea|oikealla|oikean|vasen|vasemmalla|vasemman)\\s+)?((?:ala|ylä)?(?:vatsa|rintakehä|rinta|pää|selkä|selä|kurkku|kurku|nivu|lonkka|polvi|olka)${L}*)`,
-  "iu",
-);
-const TIME_RE = new RegExp(
-  `${NB}(eilisillasta|eilisestä|eilen|tänään|toissapäivänä|viime yönä|aamusta|aamulla|illalla|(?:\\d+|pari|muutama|kolme|kaksi)\\s*(?:päivä|viiko|viikk|tunni|vuorokau|kuukau|vuo)${L}*)(\\s+(?:asti|alkaen|lähtien|sitten|ajan))?`,
-  "iu",
-);
-
-const BP_CONTEXT_RE = /(rr|verenpain|vp|uusintamittau|mmhg)/iu;
-const BP_RE = /(?<!\d)(\d{2,3})\s*\/\s*(\d{2,3})(?!\d)/gu;
-const HR_RE = new RegExp(`${NB}(syke|pulssi|p)\\s*(?:on|oli|:)?\\s*(\\d{2,3})(?!\\d)`, "giu");
-const TEMP_RE = new RegExp(`${NB}(lämpö|lämmöt|temp${L}*)\\s*(?:on|oli|:)?\\s*(\\d{2}(?:[,.]\\d{1,2})?)(?![\\d])`, "giu");
-
-const SUSPECT_RE = new RegExp(
-  `${NB}(epäilen|epäilisin|epäily|epäillään|epäilty|mahdollinen|mahdollisesti|todennäköisesti|viittaa|sopisi)\\s+([${L}\\- ]{3,60})`,
-  "iu",
-);
 const ASSESS_RE = /(epäil|arvioni|arvioisin|vaikuttaa|todennäköi|mahdollisesti|kyseessä|sopii|viittaa)/iu;
 const PLAN_RE = /(otetaan|otamme|lähetän|lähete|kontrolli|seuranta|seurataan|jatkoarvi|aloitetaan|aloitan|määrään|ohjaan|varataan|varaan|soita|uusi käynti|päivystykseen|tilataan|tilaan)/iu;
 const MED_DOSE_RE = new RegExp(`(${L}{4,})\\s+(\\d+(?:[,.]\\d+)?)\\s*(mg|µg|mcg|g|ml|ky)${NE}`, "iu");
@@ -59,58 +16,7 @@ const MED_RE = /(käytän|käyttää|käytössä|lääkity|lääke|lääkkee|tab
 const ALLERGY_RE = /(allergi|yliherk|tulee ihottum|ei sovi|ei siedä)/iu;
 const NO_ALLERGY_RE = /(ei\s+(ole\s+)?(tiedossa\s+olevia\s+)?allergi|ei\s+lääkeallergi)/iu;
 const PROC_RE = /(leikattu|leikkaus|leikattiin|operoitu|toimenpide|poistettu|poistettiin)/iu;
-const YEAR_RE = /(vuonna\s+)?((?:19|20)\d{2})/u;
 const FINDING_RE = /(palpaatioarka|aristaa|arista|aristus|kuultu|auskult|todetaan|statuksessa|iho on|on punoit|turvotus)/iu;
-
-function splitSentences(seg: TranscriptSegment): Sentence[] {
-  const out: Sentence[] = [];
-  const re = /[^.!?]+[.!?]*/gu;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(seg.text))) {
-    const raw = m[0];
-    const lead = raw.length - raw.trimStart().length;
-    const text = raw.trim();
-    if (!text) continue;
-    const start = m.index + lead;
-    out.push({
-      seg,
-      start,
-      end: start + text.length,
-      text,
-      isQuestion: text.endsWith("?") || QUESTION_WORD_RE.test(text),
-    });
-  }
-  return out;
-}
-
-/** Onko avainsana kielletty samassa lauseen osassa ennen avainsanaa. */
-function negatedBefore(sentence: string, index: number): boolean {
-  const before = sentence.slice(0, index);
-  const clauseStart = Math.max(before.lastIndexOf(","), before.toLowerCase().lastIndexOf(" mutta "), before.lastIndexOf(";"));
-  const clause = before.slice(clauseStart + 1);
-  return NEG_RE.test(clause);
-}
-
-/** Valitsee sijainniksi ilmauksen, joka ei ole itse oiresana (esim. "vatsakipua"). */
-function findLocation(text: string): string | null {
-  const re = new RegExp(LOCATION_RE.source, "giu");
-  let best: string | null = null;
-  for (let m = re.exec(text); m; m = re.exec(text)) {
-    const word = m[0].trim();
-    if (/kip|sär/iu.test(word)) continue;
-    if (!best || m[1]) best = word;
-    if (m[1]) break;
-  }
-  return best;
-}
-
-function speakerLabel(s: Speaker): string {
-  return s === "ammattilainen" ? "Ammattilainen" : s === "potilas" ? "Potilas" : s === "läheinen" ? "Läheinen" : "Tuntematon puhuja";
-}
-
-function fmt(n: number): string {
-  return String(n).replace(".", ",");
-}
 
 export function mockStructure(t: Transcript): StructuringOutput {
   const proposals: ModelProposal[] = [];
@@ -145,79 +51,14 @@ export function mockStructure(t: Transcript): StructuringOutput {
     let consumed = false; // onko lause jo luokiteltu muistiinpanoon
 
     // --- Mittaukset ---
-    let hasVital = false;
-    if (BP_CONTEXT_RE.test(text)) {
-      BP_RE.lastIndex = 0;
-      let m: RegExpExecArray | null;
-      let prevEnd = 0;
-      while ((m = BP_RE.exec(text))) {
-        const sys = Number(m[1]);
-        const dia = Number(m[2]);
-        const between = text.slice(prevEnd, m.index).toLowerCase();
-        prevEnd = m.index + m[0].length;
-        const temporality = /uusinta/.test(between) ? "uusintamittaus tällä käynnillä" : /ensin/.test(between) ? "ensimmäinen mittaus tällä käynnillä" : "tällä käynnillä";
-        const plausible = sys >= 50 && sys <= 260 && dia >= 30 && dia <= 160 && sys > dia;
-        const p: ModelProposal = {
-          proposalId: nextId(),
-          type: "bp",
-          value: { text: `Verenpaine ${sys}/${dia} mmHg`, bp: { systolic: sys, diastolic: dia }, quantity: null, verificationStatus: null },
-          source: src(s, m.index, m.index + m[0].length),
-          certainty: plausible ? "suora" : "ristiriitainen",
-          issues: [
-            "Mittausaikaa ei ilmaistu keskustelussa; aikaa ei lisätä.",
-            ...(plausible ? [] : ["Arvo on epätavallinen; tarkista litteraatti."]),
-          ],
-          subject,
-          negation: false,
-          temporality,
-          codingCandidate: VITAL_CODES.bpPanel,
-          targetResourceType: "Observation",
-        };
-        bps.push(p);
-        proposals.push(p);
-        hasVital = true;
-      }
-    }
-    HR_RE.lastIndex = 0;
-    for (let m = HR_RE.exec(text); m; m = HR_RE.exec(text)) {
-      const v = Number(m[2]);
-      const plausible = v >= 25 && v <= 250;
-      proposals.push({
-        proposalId: nextId(),
-        type: "heart-rate",
-        value: { text: `Syke ${v} /min`, bp: null, quantity: { value: v, unit: "/min" }, verificationStatus: null },
-        source: src(s, m.index, m.index + m[0].length),
-        certainty: plausible ? "suora" : "ristiriitainen",
-        issues: ["Mittausaikaa ei ilmaistu keskustelussa; aikaa ei lisätä.", ...(plausible ? [] : ["Arvo on epätavallinen."])],
-        subject,
-        negation: false,
-        temporality: "tällä käynnillä",
-        codingCandidate: VITAL_CODES.heartRate,
-        targetResourceType: "Observation",
-      });
-      hasVital = true;
-    }
-    TEMP_RE.lastIndex = 0;
-    for (let m = TEMP_RE.exec(text); m; m = TEMP_RE.exec(text)) {
-      const v = Number(m[2].replace(",", "."));
-      const plausible = v >= 34 && v <= 43;
-      const p: ModelProposal = {
-        proposalId: nextId(),
-        type: "temperature",
-        value: { text: `Lämpö ${fmt(v)} °C`, bp: null, quantity: { value: v, unit: "Cel" }, verificationStatus: null },
-        source: src(s, m.index, m.index + m[0].length),
-        certainty: plausible ? "suora" : "ristiriitainen",
-        issues: ["Mittausaikaa ei ilmaistu keskustelussa; aikaa ei lisätä.", ...(plausible ? [] : ["Arvo on epätavallinen."])],
-        subject,
-        negation: false,
-        temporality: "tällä käynnillä",
-        codingCandidate: VITAL_CODES.temperature,
-        targetResourceType: "Observation",
-      };
-      temps.push(p);
+    const hits = extractMeasurements(text);
+    for (const h of hits) {
+      const p = toMeasurementProposal(h, { proposalId: nextId(), source: src(s, h.relStart, h.relEnd), subject });
+      if (p.type === "bp") bps.push(p);
+      if (p.type === "temperature") temps.push(p);
       proposals.push(p);
-      hasVital = true;
     }
+    const hasVital = hits.length > 0;
     if (hasVital) {
       note.findings.push(`Mitattu: ${text}`);
       consumed = true;

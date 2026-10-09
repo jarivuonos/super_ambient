@@ -37,6 +37,7 @@ interface Structured {
   note: NoteState;
   proposals: Proposal[];
   warnings: string[];
+  diagnostics?: unknown;
 }
 
 const CERTAINTY_TONE = { suora: "good", tulkinnanvarainen: "warn", ristiriitainen: "bad" } as const;
@@ -380,6 +381,7 @@ export function RecordView({
       note: { draft: res.data.note, approvedHash: null },
       proposals: res.data.proposals,
       warnings: res.data.warnings,
+      diagnostics: res.data.diagnostics ?? undefined,
     });
     setPreview(null);
     setOutcome(null);
@@ -510,11 +512,14 @@ export function RecordView({
             Liitä mallivastaus käsin
           </Button>
           {lang && (
-            <Badge tone={lang.capabilities.structureTranscript === "mock" ? "warn" : lang.capabilities.structureTranscript === "model" ? "good" : "bad"}>
-              {lang.capabilities.structureTranscript === "mock" ? "Rakenteistus: MOCK-tila (sääntöpohjainen, ei kielimalli)" : lang.capabilities.structureTranscript === "model" ? `Rakenteistus: ${lang.name}` : "Rakenteistus ei käytössä"}
+            <Badge tone={lang.capabilities.structureTranscript === "mock" ? "warn" : lang.capabilities.structureTranscript === "model" || lang.capabilities.structureTranscript === "classified" ? "good" : "bad"}>
+              {lang.capabilities.structureTranscript === "mock" ? "Rakenteistus: MOCK-tila (sääntöpohjainen, ei kielimalli)" : lang.capabilities.structureTranscript === "classified" ? `Rakenteistus: ${lang.name} luokittelee, sovellus poimii` : lang.capabilities.structureTranscript === "model" ? `Rakenteistus: ${lang.name}` : "Rakenteistus ei käytössä"}
             </Badge>
           )}
         </div>
+        {lang?.capabilities.structureTranscript === "classified" && (
+          <p className="mt-1 text-xs text-amber-800">Painike lähettää litteraatin lauseet (ilman potilastunnisteita) Typesafelle luokiteltavaksi. Käytä vain synteettistä harjoituspuhetta.</p>
+        )}
         {lang?.capabilities.structureTranscript === "unavailable" && <p className="mt-1 text-xs text-red-800">{lang.description}</p>}
         {showPaste && transcript && (
           <div className="mt-3 space-y-2 rounded-md border border-dashed border-zinc-300 p-3">
@@ -554,6 +559,7 @@ export function RecordView({
             }
           >
             <p className="mb-2 text-xs text-zinc-500">Luonnos erottelee potilaan kertoman, mitatun ja ammattilaisen arvion. Muokkaus peruu hyväksynnän.</p>
+            {structured.diagnostics !== undefined && <JsonDetails summary="Rakenteistuksen tekniset tiedot (lauseita, epävarmat arviot, tokenit)" value={structured.diagnostics} />}
             <div className="grid gap-3 md:grid-cols-2">
               {(Object.keys(NOTE_SECTION_LABELS) as (keyof NoteDraft)[]).map((k) => (
                 <label key={k} className="block text-sm">

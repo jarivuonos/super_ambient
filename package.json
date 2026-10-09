@@ -11,7 +11,8 @@
     "test": "vitest run",
     "smoke:hapi": "bun scripts/smoke-hapi.ts",
     "e2e:ui": "bun scripts/ui-e2e.ts",
-    "eval:interpret": "bun scripts/eval-interpret.ts"
+    "eval:interpret": "bun scripts/eval-interpret.ts",
+    "eval:structure": "bun scripts/eval-structure.ts"
   },
   "dependencies": {
     "next": "16.4.0",

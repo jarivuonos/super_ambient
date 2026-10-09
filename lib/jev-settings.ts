@@ -10,6 +10,19 @@ export interface JevSettings {
   model: string;
 }
 
+export interface StructuringSettings {
+  /** "jev": litteraatin lauseet lähetetään Typesafelle luokiteltaviksi. Oletus on mock (ei lähetetä). */
+  structuring: "jev" | "mock";
+  /** Samanaikaisten Jev-pyyntöjen määrä (1–8). Oletus 1 vastaa alinta tilausta. */
+  concurrency: number;
+}
+
+export function readStructuringSettings(env: Record<string, string | undefined>): StructuringSettings {
+  const structuring = (env.LLM_STRUCTURING || "mock").trim().toLowerCase() === "jev" ? "jev" : "mock";
+  const c = Number.parseInt(env.JEV_CONCURRENCY ?? "", 10);
+  return { structuring, concurrency: Number.isFinite(c) ? Math.min(8, Math.max(1, c)) : 1 };
+}
+
 export type JevSettingsResult = { ok: true; settings: JevSettings } | { ok: false; reason: string };
 
 export function readJevSettings(env: Record<string, string | undefined>): JevSettingsResult {

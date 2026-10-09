@@ -14,7 +14,7 @@ export type Guard = <T>(fn: (signal: AbortSignal) => Promise<ApiResult<T>>) => P
 const isDemo = (p: Patient | null) => !!p?.meta?.tag?.some((t) => t.system === DEMO_TAG_SYSTEM && t.code === DEMO_TAG_CODE);
 
 function sourceLabel(src: StatusResponse["language"]["capabilities"]["answer"], name: string): string {
-  return src === "model" ? name : src === "mock" ? "mock-säännöt (ei kielimalli)" : src === "deterministic" ? "sovelluksen oma koonti haetuista resursseista" : "ei käytössä";
+  return src === "model" ? name : src === "classified" ? `${name} luokittelee lauseet, sovellus poimii lainaukset ja arvot` : src === "mock" ? "mock-säännöt (ei kielimalli)" : src === "deterministic" ? "sovelluksen oma koonti haetuista resursseista" : "ei käytössä";
 }
 
 function StatusPanel({ status, error, onRefresh, refreshing }: { status: StatusResponse | null; error: string | null; onRefresh: () => void; refreshing: boolean }) {
