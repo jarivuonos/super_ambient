@@ -1,6 +1,7 @@
 // Selaimen API-apurit. Kaikki FHIR- ja mallikutsut kulkevat sovelluksen palvelimen kautta.
 
 import type { AskResponse } from "@/lib/clinical/ask";
+import type { CapabilitySource } from "@/lib/clinical/language-adapter";
 import type { NoteDraft, Proposal, Transcript } from "@/lib/clinical/schemas";
 import type { SearchResult } from "@/lib/fhir/ehr-adapter";
 import type { SaveMapEntry } from "@/lib/fhir/resource-builders";
@@ -52,7 +53,13 @@ export interface StatusResponse {
       | { ok: false; checkedAt: string; error: { kind: string; message: string; status?: number } };
     lastSuccessAt: string | null;
   };
-  language: { name: string; kind: "mock" | "model" | "unavailable"; description: string; model: string | null };
+  language: {
+    name: string;
+    kind: "mock" | "model" | "hybrid" | "unavailable";
+    description: string;
+    model: string | null;
+    capabilities: { interpretQuestion: CapabilitySource; answer: CapabilitySource; structureTranscript: CapabilitySource };
+  };
   transcription: { name: string; configured: boolean; description: string; capabilities: Record<string, boolean> };
 }
 
@@ -62,7 +69,7 @@ export type AskResult = AskResponse & { patientId: string; encounterId: string |
 
 export interface StructureResponse {
   source: string;
-  sourceKind: "mock" | "model" | "pasted" | "unavailable";
+  sourceKind: "mock" | "model" | "pasted" | "unavailable" | "deterministic";
   transcriptVersion: string;
   note: NoteDraft;
   proposals: Proposal[];

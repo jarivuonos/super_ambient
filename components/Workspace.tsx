@@ -13,6 +13,10 @@ export type Guard = <T>(fn: (signal: AbortSignal) => Promise<ApiResult<T>>) => P
 
 const isDemo = (p: Patient | null) => !!p?.meta?.tag?.some((t) => t.system === DEMO_TAG_SYSTEM && t.code === DEMO_TAG_CODE);
 
+function sourceLabel(src: StatusResponse["language"]["capabilities"]["answer"], name: string): string {
+  return src === "model" ? name : src === "mock" ? "mock-säännöt (ei kielimalli)" : src === "deterministic" ? "sovelluksen oma koonti haetuista resursseista" : "ei käytössä";
+}
+
 function StatusPanel({ status, error, onRefresh, refreshing }: { status: StatusResponse | null; error: string | null; onRefresh: () => void; refreshing: boolean }) {
   const check = status?.fhir.check;
   return (
@@ -54,7 +58,15 @@ function StatusPanel({ status, error, onRefresh, refreshing }: { status: StatusR
           <dd>{formatTime(status.fhir.lastSuccessAt)}</dd>
           <dt className="text-zinc-500">Kielimalli</dt>
           <dd>
-            <Badge tone={status.language.kind === "mock" ? "warn" : status.language.kind === "model" ? "good" : "bad"}>{status.language.kind === "mock" ? "MOCK" : status.language.kind === "model" ? "käytössä" : "ei käytössä"}</Badge> {status.language.description}
+            <Badge tone={status.language.kind === "model" || status.language.kind === "hybrid" ? "good" : status.language.kind === "mock" ? "warn" : "bad"}>
+              {status.language.kind === "hybrid" ? `${status.language.name} (osittain)` : status.language.kind === "mock" ? "MOCK" : status.language.kind === "model" ? "käytössä" : "ei käytössä"}
+            </Badge>{" "}
+            {status.language.description}
+            <ul className="mt-1 list-disc pl-4 text-zinc-700">
+              <li>Kysymysten tulkinta: {sourceLabel(status.language.capabilities.interpretQuestion, status.language.name)}</li>
+              <li>Vastauksen kokoaminen: {sourceLabel(status.language.capabilities.answer, status.language.name)}</li>
+              <li>Litteraatin rakenteistus: {sourceLabel(status.language.capabilities.structureTranscript, status.language.name)}</li>
+            </ul>
           </dd>
           <dt className="text-zinc-500">Litterointi</dt>
           <dd>
@@ -362,7 +374,7 @@ export function Workspace() {
               {/* key: potilaan/kontaktin vaihto nollaa näkymien tilan. */}
               <div key={ctxKey}>
                 <div hidden={tab !== "ask"}>
-                  <AskView patientId={patient.id!} encounterId={encounter?.id ?? null} guard={guard} languageKind={status?.language.kind} />
+                  <AskView patientId={patient.id!} encounterId={encounter?.id ?? null} guard={guard} language={status?.language} />
                 </div>
                 <div hidden={tab !== "record"}>
                   <RecordView patientId={patient.id!} encounterId={encounter?.id ?? null} isDemoPatient={isDemo(patient)} guard={guard} status={status} onDirtyChange={onDirtyChange} />

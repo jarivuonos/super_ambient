@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "smoke:hapi": "bun scripts/smoke-hapi.ts",
-    "e2e:ui": "bun scripts/ui-e2e.ts"
+    "e2e:ui": "bun scripts/ui-e2e.ts",
+    "eval:interpret": "bun scripts/eval-interpret.ts"
   },
   "dependencies": {
     "next": "16.4.0",

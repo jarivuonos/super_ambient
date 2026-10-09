@@ -18,7 +18,7 @@ export async function GET(request: Request) {
         : { ok: false, checkedAt: check.checkedAt, error: check.error },
       lastSuccessAt: lastSuccess?.at ?? null,
     },
-    language: { name: lang.name, kind: lang.kind, description: lang.description, model: cfg.llm.model ?? null },
+    language: { name: lang.name, kind: lang.kind, description: lang.description, model: cfg.llm.model ?? null, capabilities: lang.capabilities },
     transcription: { name: tr.name, configured: tr.configured, description: tr.description, capabilities: tr.capabilities },
   });
 }

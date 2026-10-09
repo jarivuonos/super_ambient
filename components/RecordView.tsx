@@ -503,15 +503,19 @@ export function RecordView({
           )}
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Button variant="primary" onClick={() => void structure("adapter")} disabled={!transcript || busy !== null || lang?.kind === "unavailable"}>
+          <Button variant="primary" onClick={() => void structure("adapter")} disabled={!transcript || busy !== null || lang?.capabilities.structureTranscript === "unavailable"}>
             {busy === "structure" ? "Rakenteistetaan…" : "Muodosta käyntimerkintäluonnos"}
           </Button>
           <Button variant="ghost" onClick={() => setShowPaste((v) => !v)} disabled={!transcript}>
             Liitä mallivastaus käsin
           </Button>
-          {lang && <Badge tone={lang.kind === "mock" ? "warn" : lang.kind === "model" ? "good" : "bad"}>{lang.kind === "mock" ? "MOCK-tila: sääntöpohjainen, ei kielimalli" : lang.name}</Badge>}
+          {lang && (
+            <Badge tone={lang.capabilities.structureTranscript === "mock" ? "warn" : lang.capabilities.structureTranscript === "model" ? "good" : "bad"}>
+              {lang.capabilities.structureTranscript === "mock" ? "Rakenteistus: MOCK-tila (sääntöpohjainen, ei kielimalli)" : lang.capabilities.structureTranscript === "model" ? `Rakenteistus: ${lang.name}` : "Rakenteistus ei käytössä"}
+            </Badge>
+          )}
         </div>
-        {lang?.kind === "unavailable" && <p className="mt-1 text-xs text-red-800">{lang.description}</p>}
+        {lang?.capabilities.structureTranscript === "unavailable" && <p className="mt-1 text-xs text-red-800">{lang.description}</p>}
         {showPaste && transcript && (
           <div className="mt-3 space-y-2 rounded-md border border-dashed border-zinc-300 p-3">
             <p className="text-xs text-zinc-600">Voit ajaa pyynnön itse valitsemallasi mallilla ja liittää JSON-vastauksen. Vastaus tarkistetaan samalla skeemalla ja lähdeviitetarkistuksella.</p>

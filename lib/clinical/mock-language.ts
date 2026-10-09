@@ -1,25 +1,20 @@
 // Sääntöpohjainen MOCK-kysymystulkinta ja faktoihin perustuva vastaus. Ei kielimalli.
 
 import { formatDate, isImagingReport, type Fact } from "./facts";
-import type { InfoNeed, Intent } from "./schemas";
+import { CLARIFY_GENERIC, INTENT_PROFILE, daysAgo, type KnownIntent } from "./intents";
+import type { InfoNeed } from "./schemas";
 
-const RULES: { re: RegExp; intent: Intent; types: InfoNeed["resourceTypes"]; concepts: string[] }[] = [
-  { re: /verenpain|\brr\b|\bvp\b/iu, intent: "blood-pressure", types: ["Observation"], concepts: ["verenpaine"] },
-  { re: /(ongelm|muutok|yhteenvet|tilanne|kokonaiskuva|mikä potilaa)/iu, intent: "overview", types: ["Condition", "Observation", "MedicationStatement", "AllergyIntolerance", "DiagnosticReport"], concepts: ["ongelmat", "poikkeavat havainnot", "muutokset"] },
-  { re: /lääk/iu, intent: "medications", types: ["MedicationStatement", "MedicationRequest"], concepts: ["lääkitys"] },
-  { re: /allerg|yliherk/iu, intent: "allergies", types: ["AllergyIntolerance"], concepts: ["allergiat"] },
-  { re: /kuvanta|röntgen|\brtg\b|lausun|\bct\b|\btt\b|\bmri\b|magneet|ultraä/iu, intent: "imaging-report", types: ["DiagnosticReport", "DocumentReference"], concepts: ["kuvantamislausunto"] },
-  { re: /labor|\bhb\b|hemoglob|krea|kalium|\bcrp\b|kolester|\bldl\b|verikoe|näyte/iu, intent: "laboratory", types: ["Observation"], concepts: ["laboratoriotulokset"] },
-  { re: /diagnoo|sairau/iu, intent: "conditions", types: ["Condition"], concepts: ["diagnoosit"] },
-  { re: /vitaal|syke|pulssi|lämpö|mittau/iu, intent: "vital-signs", types: ["Observation"], concepts: ["vitaalimittaukset"] },
-  { re: /asiakirj|merkin|kertomus|teksti/iu, intent: "documents", types: ["DocumentReference"], concepts: ["asiakirjat"] },
+const RULES: { re: RegExp; intent: KnownIntent }[] = [
+  { re: /verenpain|\brr\b|\bvp\b/iu, intent: "blood-pressure" },
+  { re: /(ongelm|muutok|yhteenvet|tilanne|kokonaiskuva|mikä potilaa)/iu, intent: "overview" },
+  { re: /lääk/iu, intent: "medications" },
+  { re: /allerg|yliherk/iu, intent: "allergies" },
+  { re: /kuvanta|röntgen|\brtg\b|lausun|\bct\b|\btt\b|\bmri\b|magneet|ultraä/iu, intent: "imaging-report" },
+  { re: /labor|\bhb\b|hemoglob|krea|kalium|\bcrp\b|kolester|\bldl\b|verikoe|näyte/iu, intent: "laboratory" },
+  { re: /diagnoo|sairau/iu, intent: "conditions" },
+  { re: /vitaal|syke|pulssi|lämpö|mittau/iu, intent: "vital-signs" },
+  { re: /asiakirj|merkin|kertomus|teksti/iu, intent: "documents" },
 ];
-
-function daysAgo(today: string, days: number): string {
-  const d = new Date(`${today}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - days);
-  return d.toISOString().slice(0, 10);
-}
 
 export function mockInterpretQuestion(question: string, today: string): InfoNeed {
   const q = question.trim();
@@ -36,15 +31,14 @@ export function mockInterpretQuestion(question: string, today: string): InfoNeed
       concepts: [],
       timeRange: null,
       scope: "patient",
-      clarificationQuestion:
-        "En tunnistanut tiedontarvetta. Tarkoitatko esimerkiksi verenpaineita, lääkitystä, allergioita, laboratoriotuloksia, lausuntoja vai ongelmien yhteenvetoa?",
+      clarificationQuestion: CLARIFY_GENERIC,
       rationale: "Mock-tulkinta: kysymyksestä ei löytynyt tunnettua avainsanaa.",
     };
   }
   return {
     intent: rule.intent,
-    resourceTypes: rule.types,
-    concepts: rule.concepts,
+    resourceTypes: INTENT_PROFILE[rule.intent].types,
+    concepts: INTENT_PROFILE[rule.intent].concepts,
     timeRange: since ? { since } : null,
     scope: encounterOnly ? "encounter" : "patient",
     clarificationQuestion: null,
@@ -63,12 +57,26 @@ export function mockAnswer(need: InfoNeed, facts: Fact[], missing: string[], now
     case "blood-pressure": {
       const bp = facts.filter((f) => f.kind.startsWith("bp-"));
       if (!bp.length) return none("verenpainemittauksia");
+      const bpText = (f: Fact) => (f.kind === "bp-systolic" ? `systolinen ${f.text}` : f.kind === "bp-diastolic" ? `diastolinen ${f.text}` : f.text);
       const latest = bp[0];
-      parts.push(`Viimeisin verenpainetieto: ${latest.text} (${latest.dateLabel} ${formatDate(latest.date)}) ${ref(latest)}.`);
-      if (latest.kind !== "bp-panel") parts.push("Viimeisin tieto on erillinen mittausresurssi, jota ei yhdistetä pariksi.");
-      const earlier = bp.slice(1, 5);
-      const bpText = (f: Fact) => (f.kind === "bp-systolic" ? `systolinen ${f.text} (erillinen)` : f.kind === "bp-diastolic" ? `diastolinen ${f.text} (erillinen)` : f.text);
-      if (earlier.length) parts.push(`Aiemmat: ${earlier.map((f) => `${bpText(f)} ${formatDate(f.date)} ${ref(f)}`).join("; ")}.`);
+      parts.push(`Viimeisin verenpainetieto: ${bpText(latest)} (${latest.dateLabel} ${formatDate(latest.date)}) ${ref(latest)}.`);
+      // Erillisiä systolinen/diastolinen-resursseja ei yhdistetä pariksi. Samalta ajalta olevat näytetään
+      // rinnakkain, mutta selvästi erillisinä.
+      const sameTime =
+        latest.kind === "bp-panel" || !latest.date
+          ? []
+          : bp.slice(1).filter((f) => f.kind !== "bp-panel" && f.kind !== latest.kind && f.date === latest.date);
+      if (latest.kind !== "bp-panel") {
+        parts.push(
+          sameTime.length
+            ? `Samalta ajalta on lisäksi ${sameTime.map((f) => `${bpText(f)} ${ref(f)}`).join("; ")}. Ne ovat erillisiä mittausresursseja, joita ei ole yhdistetty pariksi.`
+            : "Viimeisin tieto on erillinen mittausresurssi, jota ei yhdistetä pariksi.",
+        );
+      }
+      const earlier = bp.slice(1).filter((f) => !sameTime.includes(f)).slice(0, 4);
+      if (earlier.length) {
+        parts.push(`Aiemmat: ${earlier.map((f) => `${bpText(f)}${f.kind === "bp-panel" ? "" : " (erillinen)"} ${formatDate(f.date)} ${ref(f)}`).join("; ")}.`);
+      }
       break;
     }
     case "medications": {

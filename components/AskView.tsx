@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { formatDate, type Fact } from "@/lib/clinical/facts";
-import { api, type AskResult } from "./api";
+import { api, type AskResult, type StatusResponse } from "./api";
 import { Badge, Button, ErrorBox, JsonDetails, Section } from "./ui";
 import type { Guard } from "./Workspace";
 
@@ -19,7 +19,7 @@ const STATE_LABEL: Record<string, { text: string; tone: "good" | "warn" | "bad" 
   partial: { text: "Haku jäi osittaiseksi", tone: "warn" },
   error: { text: "Haku epäonnistui", tone: "bad" },
   clarify: { text: "Tarkennus tarvitaan", tone: "info" },
-  "service-unavailable": { text: "Mallipalvelu ei ole käytössä", tone: "bad" },
+  "service-unavailable": { text: "Mallipalvelu ei ole käytettävissä", tone: "bad" },
 };
 
 function FactRow({ f }: { f: Fact }) {
@@ -64,24 +64,24 @@ export function AskView({
   patientId,
   encounterId,
   guard,
-  languageKind,
+  language,
 }: {
   patientId: string;
   encounterId: string | null;
   guard: Guard;
-  languageKind?: string;
+  language?: StatusResponse["language"];
 }) {
   const [result, setResult] = useState<AskResult | null>(null);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{ message: string; detail?: unknown } | null>(null);
 
-  async function ask(q: string) {
+  async function ask(q: string, interpreter?: "mock") {
     if (!q.trim()) return;
     setQuestion(q);
     setLoading(true);
     setError(null);
-    const res = await guard((signal) => api<AskResult>("/api/ask", { json: { question: q, patientId, encounterId }, signal }));
+    const res = await guard((signal) => api<AskResult>("/api/ask", { json: { question: q, patientId, encounterId, interpreter }, signal }));
     if (res === null) return; // potilas vaihtui: vanha vastaus hylätään
     setLoading(false);
     if (!res.ok) {
@@ -124,8 +124,13 @@ export function AskView({
             </button>
           ))}
         </div>
-        {languageKind === "mock" && (
+        {language?.capabilities.interpretQuestion === "mock" && (
           <p className="mt-2 text-xs text-zinc-500">Kysymyksen tulkinta tehdään mock-tilassa avainsanoilla (ei kielimallia). Vastaus kootaan suoraan haetuista resursseista.</p>
+        )}
+        {language?.capabilities.interpretQuestion === "model" && (
+          <p className="mt-2 text-xs text-zinc-500">
+            Kysymyksen tulkinta: {language.name}. Palveluun lähetetään vain kysymysteksti, ei potilastietoja. Vastaus kootaan suoraan haetuista resursseista (ei kielimallia), ja lähteet näkyvät alla.
+          </p>
         )}
       </Section>
 
@@ -136,9 +141,22 @@ export function AskView({
           <p className="mb-1 text-xs text-zinc-500">Kysymys: {result.question}</p>
           <div className="whitespace-pre-wrap rounded-md bg-zinc-50 p-3 text-sm text-zinc-900">{result.answer}</div>
           <p className="mt-1 text-xs text-zinc-500">
-            Vastauksen lähde:{" "}
-            {result.answerSource === "mock" ? "mock-tila (koottu faktoista, ei kielimalli)" : result.answerSource === "model" ? result.planSource : "faktoista koottu varavastaus"}
+            Kysymyksen tulkinta:{" "}
+            {result.interpretedBy === "model" ? result.planSource : result.interpretedBy === "mock" ? "mock-säännöt (ei kielimalli)" : "ei käytössä"} · Vastauksen lähde:{" "}
+            {result.answerSource === "model"
+              ? result.planSource
+              : result.answerSource === "mock" || result.answerSource === "deterministic"
+                ? "koottu suoraan haetuista resursseista (ei kielimalli)"
+                : "faktoista koottu varavastaus"}
           </p>
+          {result.state === "service-unavailable" && result.interpretedBy !== "mock" && (
+            <div className="mt-2">
+              <Button onClick={() => void ask(result.question, "mock")} disabled={loading}>
+                Käytä mock-tulkintaa tähän kysymykseen
+              </Button>
+              <p className="mt-1 text-xs text-zinc-500">Mock-tulkinta on sääntöpohjainen eikä kielimalli; se tunnistaa vain rajatun joukon ilmauksia.</p>
+            </div>
+          )}
           {result.notes.map((n, i) => (
             <ErrorBox key={i} tone="warn" title="Huomio" message={n} />
           ))}
@@ -196,6 +214,7 @@ export function AskView({
                 ))}
               </ul>
               {result.plan && <JsonDetails summary="Tiedontarve (JSON)" value={result.plan} />}
+              {result.interpretation && <JsonDetails summary="Mallin tulkinnan tekniset tiedot (todennäköisyydet, rajat)" value={result.interpretation} />}
             </details>
           </div>
         </Section>

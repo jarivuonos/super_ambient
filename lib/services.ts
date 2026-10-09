@@ -1,6 +1,6 @@
 import "server-only";
 import { createLanguageAdapter, type ClinicalLanguageAdapter } from "./clinical/language-adapter";
-import { getConfig } from "./config";
+import { getConfig, getJevSettings } from "./config";
 import type { CapabilityCheck, CapabilitySummary } from "./fhir/ehr-adapter";
 import { HapiR4Adapter } from "./fhir/hapi-adapter";
 import { createTranscriptionAdapter, type TranscriptionAdapter } from "./transcription/adapter";
@@ -22,7 +22,7 @@ export function getEhr(): HapiR4Adapter {
 }
 
 export function getLanguage(): ClinicalLanguageAdapter {
-  if (!language) language = createLanguageAdapter(getConfig().llm);
+  if (!language) language = createLanguageAdapter(getConfig().llm, getJevSettings());
   return language;
 }
 

@@ -13,7 +13,7 @@ import {
   reportFacts,
   type Fact,
 } from "./facts";
-import { LanguageServiceUnavailable, parseWithRepair, type ClinicalLanguageAdapter } from "./language-adapter";
+import { LanguageServiceUnavailable, parseWithRepair, type CapabilitySource, type ClinicalLanguageAdapter } from "./language-adapter";
 import { mockAnswer } from "./mock-language";
 import { InfoNeedSchema, type InfoNeed, type Intent } from "./schemas";
 
@@ -127,7 +127,12 @@ export interface AskResponse {
   searches: SearchSummary[];
   facts: Fact[];
   answer: string;
-  answerSource: "mock" | "model" | "deterministic-fallback";
+  /** Kuka tulkitsi kysymyksen. */
+  interpretedBy: CapabilitySource;
+  /** Tulkinnan tekniset tiedot (esim. Jevin todennäköisyydet); näytetään vain lisätiedoissa. */
+  interpretation: Record<string, unknown> | null;
+  /** deterministic = koottu suoraan faktoista; deterministic-fallback = mallin vastaus hylättiin. */
+  answerSource: "mock" | "model" | "deterministic" | "deterministic-fallback";
   missing: string[];
   notes: string[];
 }
@@ -150,14 +155,23 @@ export async function runAsk(params: {
     searches: [],
     facts: [],
     answer: "",
-    answerSource: language.kind === "mock" ? "mock" : "model",
+    interpretedBy: language.capabilities.interpretQuestion,
+    interpretation: null,
+    answerSource: language.capabilities.answer === "model" ? "model" : language.capabilities.answer === "mock" ? "mock" : "deterministic",
     missing: [],
     notes: [],
   };
 
   let raw: unknown;
   try {
-    raw = await language.interpretQuestion(question, { today: params.today, hasEncounter: !!encounterId });
+    raw = await language.interpretQuestion(question, {
+      today: params.today,
+      hasEncounter: !!encounterId,
+      signal,
+      onDiagnostics: (d) => {
+        base.interpretation = d as unknown as Record<string, unknown>;
+      },
+    });
   } catch (e) {
     if (e instanceof LanguageServiceUnavailable) {
       return { ...base, state: "service-unavailable", answer: e.message };

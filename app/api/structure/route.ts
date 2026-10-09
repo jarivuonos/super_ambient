@@ -28,7 +28,8 @@ export async function POST(request: Request) {
       source = "Käsin liitetty mallivastaus";
     } else {
       raw = await lang.structureTranscript(transcript);
-      source = lang.name;
+      // Rakenteistuksen tekijä voi olla eri kuin adapterin nimi (esim. Jev-hybridissä mock-säännöt).
+      source = lang.capabilities.structureTranscript === "mock" ? "Mock (sääntöpohjainen)" : lang.name;
     }
   } catch (e) {
     if (e instanceof LanguageServiceUnavailable) return jsonError(e.message, 503, { kind: "service-unavailable" });
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
   if (!result.ok) return jsonError(result.error ?? "Vastaus hylättiin.", 422, { kind: "schema" });
   return Response.json({
     source,
-    sourceKind: mode === "pasted" ? "pasted" : lang.kind,
+    sourceKind: mode === "pasted" ? "pasted" : lang.capabilities.structureTranscript,
     transcriptVersion: transcript.version,
     note: result.note,
     proposals: result.proposals,

@@ -37,6 +37,29 @@ describe("kysy potilastiedoista", () => {
     expect(r.answer).not.toMatch(/\d+\/\d+/);
   });
 
+  it("erilliset systolinen/diastolinen samalta ajalta: selkeästi nimetty, rinnakkain mutta ei pariksi yhdistetty", async () => {
+    const { ehr, idOf, fake } = setup();
+    const p2 = idOf("Patient", "demo-patient-2");
+    const obs = (code: string, display: string, value: number) =>
+      fake.put({
+        resourceType: "Observation",
+        status: "final",
+        code: { coding: [{ system: "http://loinc.org", code, display }] },
+        subject: { reference: `Patient/${p2}` },
+        effectiveDateTime: "2026-01-15T09:00:00+02:00",
+        valueQuantity: { value, unit: "mmHg", system: "http://unitsofmeasure.org", code: "mm[Hg]" },
+      });
+    obs("8480-6", "Systolic blood pressure", 135);
+    obs("8462-4", "Diastolic blood pressure", 91);
+    const r = await runAsk({ question: "Näytä viimeisimmät verenpaineet", patientId: p2, today, language: lang, ehr });
+    expect(r.facts).toHaveLength(2);
+    expect(r.answer).toMatch(/Viimeisin verenpainetieto: (systolinen 135|diastolinen 91) mmHg/);
+    expect(r.answer).toMatch(/Samalta ajalta on lisäksi (diastolinen 91|systolinen 135) mmHg/);
+    expect(r.answer).toMatch(/erillisiä mittausresursseja, joita ei ole yhdistetty pariksi/);
+    expect(r.answer).not.toMatch(/135\/91|91\/135/);
+    expect(r.answer).not.toMatch(/Aiemmat/); // samanaikaista ei esitetä aiempana
+  });
+
   it("lääkitys: vanha MedicationRequest ei kerro nykyisestä lääkityksestä", async () => {
     const { ehr, idOf } = setup();
     const r = await runAsk({ question: "Mitä lääkitystietoja löytyy?", patientId: idOf("Patient", "demo-patient-1"), today, language: lang, ehr });

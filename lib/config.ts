@@ -1,4 +1,5 @@
 import "server-only";
+import { DEFAULT_JEV_MODEL, readJevSettings, type JevSettingsResult } from "./jev-settings";
 
 // Palvelinpuolen asetukset. Avaimet luetaan vain ympäristömuuttujista.
 
@@ -30,9 +31,9 @@ export function getConfig(): AppConfig {
     fhirTimeoutMs: Number(process.env.FHIR_TIMEOUT_MS ?? 20000),
     llm: {
       provider,
-      model: process.env.LLM_MODEL || undefined,
+      model: process.env.LLM_MODEL || (provider === "jev" ? DEFAULT_JEV_MODEL : undefined),
       endpoint: process.env.LLM_ENDPOINT || undefined,
-      hasApiKey: Boolean(process.env.LLM_API_KEY),
+      hasApiKey: Boolean(process.env.TYPESAFE_API_KEY || process.env.LLM_API_KEY),
     },
     transcription: {
       provider: (process.env.TRANSCRIPTION_PROVIDER ?? "none").trim().toLowerCase() || "none",
@@ -40,4 +41,9 @@ export function getConfig(): AppConfig {
       hasApiKey: Boolean(process.env.TRANSCRIPTION_API_KEY),
     },
   };
+}
+
+/** Jev-yhteyden asetukset (sisältää avaimen) – vain palvelinpuolen käyttöön. */
+export function getJevSettings(): JevSettingsResult {
+  return readJevSettings(process.env);
 }

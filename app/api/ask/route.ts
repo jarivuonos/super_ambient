@@ -1,9 +1,16 @@
 import { z } from "zod";
 import { runAsk } from "@/lib/clinical/ask";
+import { MockLanguageAdapter } from "@/lib/clinical/language-adapter";
 import { getEhr, getLanguage, jsonError, logError } from "@/lib/services";
 
 const Id = z.string().regex(/^[A-Za-z0-9\-.]{1,64}$/);
-const Body = z.strictObject({ question: z.string().min(1).max(500), patientId: Id, encounterId: Id.nullable() });
+const Body = z.strictObject({
+  question: z.string().min(1).max(500),
+  patientId: Id,
+  encounterId: Id.nullable(),
+  /** "mock": käyttäjä valitsi sääntöpohjaisen tulkinnan, kun mallipalvelu ei vastannut. */
+  interpreter: z.enum(["configured", "mock"]).optional(),
+});
 
 export async function POST(request: Request) {
   const parsed = Body.safeParse(await request.json().catch(() => null));
@@ -14,10 +21,11 @@ export async function POST(request: Request) {
       patientId: parsed.data.patientId,
       encounterId: parsed.data.encounterId ?? undefined,
       today: new Date().toISOString().slice(0, 10),
-      language: getLanguage(),
+      language: parsed.data.interpreter === "mock" ? new MockLanguageAdapter() : getLanguage(),
       ehr: getEhr(),
       signal: request.signal,
     });
+    if (parsed.data.interpreter === "mock") res.notes.push("Kysymys tulkittiin mock-säännöillä käyttäjän pyynnöstä (ei kielimallia).");
     return Response.json({ ...res, patientId: parsed.data.patientId, encounterId: parsed.data.encounterId });
   } catch (e) {
     logError("ask", e);

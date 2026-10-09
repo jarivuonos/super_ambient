@@ -26,6 +26,7 @@ Tuotantobuild: `bun run build && bun run start`. Jos Nodea ei ole asennettu ja N
 | `bun run lint` | ESLint |
 | `bun run test` | Yksikkö- ja integraatiotestit muistinvaraista FHIR-jäljitelmää vasten (ei verkkoa, ei kirjoituksia HAPIin) |
 | `SMOKE_HAPI=1 bun run smoke:hapi` | **Erillinen smoke-testi, joka kirjoittaa julkiseen HAPIin** synteettisen aineiston ja testitallennuksen |
+| `bun run eval:interpret` | Kysymystulkinnan arviointi 41 + 38 suomenkielisellä kysymyksellä (perusjoukko ja vaikeampi joukko): mock-säännöt. Ei verkkoyhteyksiä. Lisäämällä `-- --jev` ajetaan myös Jev (peräkkäin ~79 pientä kutsua; tulostaa tarkkuuden, viiveen ja kynnysarvojen pyyhkäisyn). |
 | `SMOKE_HAPI=1 APP_URL=http://localhost:3000 bun run e2e:ui` | Selainläpikäynti (Firefox + puppeteer-core) käynnissä olevaa sovellusta vasten; **kirjoittaa HAPIin** testitallennuksen. Edellyttää harjoitusaineistoa. |
 
 ## Käyttökulku
@@ -123,12 +124,19 @@ Keskustelusta poimituissa mittauksissa **`effective[x]` jätetään pois**, kosk
 
 - **Oletus on `LLM_PROVIDER=mock`.** Tila on sääntöpohjainen, eikä se ole kielimalli. Se tunnistaa rajatun joukon suomenkielisiä ilmauksia, kuten RR-arvot, sykkeen, lämmön, kiellot, epäilyt, läheisen tiedot, lääke-, allergia- ja toimenpidemaininnat sekä suunnitelman. Käyttöliittymä merkitsee tilan selvästi.
 - **”Liitä mallivastaus käsin”** antaa pyyntöpohjan, jossa on JSON-skeema ja numeroidut puheenvuorot. Voit ajaa pyynnön valitsemallasi mallilla ja liittää vastauksen, joka käy läpi saman skeema- ja lähdeviitetarkistuksen.
-- **Jev (`LLM_PROVIDER=jev`)** on varattu. Adapteria ei ole toteutettu, koska palveluntarjoajasta, API:sta ja ominaisuuksista ei ollut dokumentaatiota. Endpointia ei ole arvattu eikä OpenAI-yhteensopivuutta oletettu. Kun Jev on valittu, käyttöliittymä kertoo, ettei palvelu ole käytössä. Kytkentä tehdään uutena `ClinicalLanguageAdapter`-toteutuksena tiedostoon `lib/clinical/language-adapter.ts` (`createLanguageAdapter`). Avain luetaan vain palvelimella muuttujasta `LLM_API_KEY`.
+- **Jev (`LLM_PROVIDER=jev`) tulkitsee kysymykset.** Jev (TypeSafe System One) on luokittelumalli, ei tekstiä tuottava kielimalli: se vastaa tyypitettyihin kysymyksiin (`choice`, `score`, `noul`) ja palauttaa valinnan ja todennäköisyyksiä. Siksi kytkentä on tarkoituksella **osittainen (hybridi)**:
+  - **Kysymyksen tulkinta (Kysy potilastiedoista):** Jev saa yhden pyynnön, jossa on kolme kysymystä: mitä tietoa kysytään (`intent`, 9 vaihtoehtoa + `none`), rajataanko kysymys valittuun kontaktiin (`visit_only`) ja rajataanko aikaväli (`period`). Vastaus muutetaan skeemavalidoiduksi tiedontarpeeksi (`lib/clinical/jev-interpreter.ts`). Resurssilajit, hakurajaukset ja päivämäärät muodostaa sovellus; Jev ei voi antaa URL:ää, potilasta tai metodia. Jevin vastauksen ulkopuolinen valinta tai puuttuva vastaus on virhe, ei arvaus.
+  - **Epävarmuus:** jos valitun tiedontarpeen todennäköisyys alittaa rajan (`THRESHOLDS`, nykyinen arvo 0,8, valittu 79 kysymyksen arvioinnin perusteella: väärät tulkinnat jäivät välille 0,62–0,72, oikeat olivat lähes kaikki vähintään 0,8) tai Jev vastaa `none`, sovellus pyytää tarkennusta eikä tee hakuja. Epävarma aikaväli tulkitaan ”ei rajausta”, jotta haku ei kavennu huomaamatta. Käyttöliittymässä varmuus on laadullinen (korkea/kohtalainen/matala); todennäköisyydet näkyvät vain avattavissa teknisissä tiedoissa.
+  - **Vastauksen kokoaminen ja litteraatin rakenteistus** eivät käytä Jeviä: vastaus koostetaan suoraan haetuista resursseista ja rakenteistus on edelleen mock-sääntöpohjainen. Tilapaneeli ja käyttöliittymä kertovat tämän toiminto kerrallaan.
+  - **Yksityisyys:** palveluun lähetetään vain kysymysteksti (enintään 500 merkkiä), ei potilastietoja, litteraattia eikä tunnisteita. Älä kirjoita kysymyksiin henkilötietoja. Käytä vain synteettistä aineistoa, kunnes palveluntarjoajan tietojenkäsittelyehdot on tarkistettu.
+  - **Virhetilanteet:** jos Jev ei vastaa (aikakatkaisu 10 s, enintään 2 uusintaa 429/529/5xx-virheissä), Kysy-näkymä näyttää virheen eikä tee hakuja. Näkymässä on valinnainen painike ”Käytä mock-tulkintaa tähän kysymykseen”; vaihtoa ei tehdä huomaamatta.
+  - **Asetukset:** `LLM_PROVIDER=jev` ja `TYPESAFE_API_KEY` (varavaihtoehto `LLM_API_KEY`). Oletukset ovat `https://api.typesafe.ai/v1/systemone` (`LLM_ENDPOINT`, vain https) ja `jev-latest` (`LLM_MODEL`). Avain luetaan vain palvelimella; virheviestit, lokit ja tilavastaus eivät sisällä avainta tai kysymystekstiä. Jos avain puuttuu, tilapaneeli kertoo, ettei Jev ole käytössä.
+  - **Laadun mittaus:** `bun run eval:interpret -- --jev` vertaa Jeviä ja mockia 79 suomenkielisellä kysymyksellä (`scripts/data/question-eval-set.ts`: 41 perusjoukkoa ja 38 vaikeampaa, joissa on monitulkintaisia, sekatyyppisiä, sotkuisia, lyhenteellisiä, ruotsin- ja englanninkielisiä sekä kehotteenpurkuyrityksiä) ja tulostaa myös kynnysarvon vaikutuksen. Kriteerit on kirjoitettu englanniksi suomalaisin avainsanoin; vaihtoehtoa voi verrata muokkaamalla `INTENT_CRITERIA`-taulua.
 - **Litterointi (`TRANSCRIPTION_PROVIDER=none`):** selaimessa voi äänittää, kuunnella ja poistaa harjoitusäänitteen. ”Litteroi äänite” kertoo, ettei palvelua ole asetettu, joten litteraatti liitetään käsin. Ääntä ei lähetetä HAPIin, ja se säilyy vain selainistunnon muistissa. Reaaliaikainen litterointi ja puhujien erottelu **eivät ole toteutettuja**.
 
 ## Testit
 
-`bun run test` (75 testiä) kattaa:
+`bun run test` (104 testiä) kattaa:
 
 - **Hakurakentajat:** koodaus, potilasrajaus, kontaktirajaus ja injektioyritykset.
 - **Skeemavalidointi** ja korjausyritysten raja.
@@ -150,6 +158,11 @@ Keskustelusta poimituissa mittauksissa **`effective[x]` jätetään pois**, kosk
   - ulkopuolinen sivutuslinkki
   - yhteyskatko
   - toisen potilaan resurssit suodattuvat pois
+- **Jev-kysymystulkinta:**
+  - pyynnön muoto, uusinnat, aikakatkaisu, peruutus ja odottamattomat vastaukset
+  - kynnysarvot, aikavälin päivämäärälaskenta ja kontaktirajaus
+  - virheviesteissä ei avainta eikä kysymystekstiä, ja pyyntöön ei mene potilastunnisteita
+  - koko Kysy-putki Jev-adapterilla: tarkennus, Jev-virhe ja oikea potilasrajaus
 - **Tallennus:**
   - kaksinkertainen tallennus ilman duplikaatteja
   - väärä kontakti
@@ -162,7 +175,11 @@ Käyttöliittymä ohittaa vanhentuneet vastaukset sukupolvilaskurilla ja AbortCo
 
 ## Tiedossa olevat rajoitukset ja jatkokehitys
 
-- Mock-rakenteistaja on sääntöpohjainen ja hauras. Se ei ymmärrä vapaata kieltä laajasti, ja oikea kielimalli (Jev) on kytkettävä dokumentaation perusteella.
+- Mock-rakenteistaja on sääntöpohjainen ja hauras. Se ei ymmärrä vapaata kieltä laajasti, ja Jev ei voi korvata sitä sellaisenaan: se luokittelee vain valmiiksi poimittuja ehdokkaita. Transkriptin rakenteistus Jevillä vaatisi hybridin (sovellus poimii ehdokkaat ja arvot, Jev arvioi tyypin, kielteisyyden, kenen tietoa ja varmuuden).
+- Jev-tulkinnan kynnysarvot (`THRESHOLDS`) perustuvat omaan 79 kysymyksen joukkoon, jonka kirjoittaja on myös kriteerien kirjoittaja. Ne on vahvistettava kliinikoiden omin sanoin kirjoittamalla irrotetulla joukolla ennen luottamista.
+- Yhdistelmäkysymykset (esim. ”sydänvaivat ja niiden lääkkeet”) johtavat tarkennuspyyntöön, koska tiedontarve on yksi kerrallaan; kahden tiedontarpeen tuki olisi erillinen ominaisuus.
+- Jev saattaa tulkita kirjoituspyynnön (”poista allergiamerkintä”) lukupyynnöksi. Sovellus on vain lukeva, joten mitään ei muutu, mutta kriteereihin on lisätty selvä maininta kirjoituspyynnöistä; vaikutus on mitattava.
+- ICD-11-koodiehdotukset (paikallinen ICD-API) ovat mahdollinen jatko: nykyinen koodiluettelo on pieni ja käsin tarkistettu.
 - Litterointipalvelua ei ole. Seuraavat askeleet ovat koko tallenteen litterointi ja sen jälkeen puhevirta, osittaiset tulokset ja puhujien erottelu (`openStream`).
 - Kirjoitukset rajautuvat käyntimerkintään, vitaalimittauksiin ja Conditioniin. Lääkitys- ja allergialistojen päivitys, tilaukset (ServiceRequest) ja FamilyMemberHistory ovat myöhempiä vaiheita.
 - Profiilit, terminologiapalvelin, THL-yhteensopivuus, tunnistautuminen ja allekirjoitusprosessi puuttuvat. Koodiluettelo (`lib/clinical/codes.ts`) on pieni käsin tarkistettu lista.
