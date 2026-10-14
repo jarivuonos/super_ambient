@@ -40,7 +40,7 @@ Tuotantobuild: `bun run build && bun run start`. Jos Nodea ei ole asennettu ja N
    - puuttuvat tiedot
    - avattavan hakusuunnitelman
 4. **Vastaanotto ja kirjaaminen:**
-   1. Äänitä tai liitä litteraatti (”Lataa esimerkkikeskustelu”).
+   1. Äänitä tai liitä litteraatti. Valikosta voi ladata jonkin 14 synteettisestä esimerkkikeskustelusta (”Lataa esimerkkikeskustelu”): oletusesimerkin lisäksi mm. kielteisiä tietoja, lapsi ja huoltaja, yhdistelmälauseita sekä ohjeiden syöttöyrityksiä sisältävä keskustelu.
    2. Valitse ”Muodosta käyntimerkintäluonnos”.
    3. Tarkista ehdotukset ja valitse kullekin Muokkaa, Hyväksy tai Hylkää. Hyväksy lisäksi käyntimerkintä.
    4. Valitse ”Esikatsele tallennus”. Näet FHIR-Bundlen ja palvelimen `$validate`-tuloksen.
@@ -183,7 +183,7 @@ Käyttöliittymä ohittaa vanhentuneet vastaukset sukupolvilaskurilla ja AbortCo
 
 ## Tiedossa olevat rajoitukset ja jatkokehitys
 
-- Mock-rakenteistaja on sääntöpohjainen ja hauras. Jev-hybridi parantaa sen arviointeja (tyyppi, kielteisyys, kenestä, epäröinti), mutta ei nimeä uusia ongelmia: ehdotuksen teksti on lause tai mockin termipoiminta, ja Jev ei poimi arvoja, joita sovelluksen säännöt eivät löydä. Kultajoukko (`scripts/data/structure-eval-set.ts`) on laatijan merkitsemä eikä lääkärin tarkistama; todellinen laatu on mitattava kliinikoiden kirjoittamilla synteettisillä keskusteluilla.
+- Mock-rakenteistaja on sääntöpohjainen ja hauras. Jev-hybridi parantaa sen arviointeja (tyyppi, kielteisyys, kenestä, epäröinti), mutta ei nimeä uusia ongelmia: ehdotuksen teksti on lause tai mockin termipoiminta, ja Jev ei poimi arvoja, joita sovelluksen säännöt eivät löydä. Kultajoukko (`lib/clinical/sample-conversations.ts`) on laatijan merkitsemä eikä lääkärin tarkistama; todellinen laatu on mitattava kliinikoiden kirjoittamilla synteettisillä keskusteluilla.
 - Jev-tulkinnan kynnysarvot (`THRESHOLDS`) perustuvat omaan 79 kysymyksen joukkoon, jonka kirjoittaja on myös kriteerien kirjoittaja. Ne on vahvistettava kliinikoiden omin sanoin kirjoittamalla irrotetulla joukolla ennen luottamista.
 - Yhdistelmäkysymykset (esim. ”sydänvaivat ja niiden lääkkeet”) johtavat tarkennuspyyntöön, koska tiedontarve on yksi kerrallaan; kahden tiedontarpeen tuki olisi erillinen ominaisuus.
 - Jev saattaa tulkita kirjoituspyynnön (”poista allergiamerkintä”) lukupyynnöksi. Sovellus on vain lukeva, joten mitään ei muutu, mutta kriteereihin on lisätty selvä maininta kirjoituspyynnöistä; vaikutus on mitattava.

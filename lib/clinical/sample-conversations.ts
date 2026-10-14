@@ -1,12 +1,15 @@
-// Synteettinen, käsin laadittu arviointijoukko litteraattien rakenteistukselle (kaikki keksittyä).
-// Jokainen rivi on yksi lause. `gold` kuvaa odotetun luokituksen; rivit ilman `gold`ia (kysymykset)
+// Synteettiset, käsin laaditut esimerkkikeskustelut. Käyttö:
+//  - käyttöliittymän "Lataa esimerkkikeskustelu" -valinta (vain litteraattiteksti),
+//  - rakenteistuksen arviointi (scripts/eval-structure.ts) ja sen testit: `gold`-merkinnät.
+// Kaikki henkilöt ja tiedot ovat keksittyjä. Jokainen rivi on yksi lause. `gold` kuvaa odotetun luokituksen; rivit ilman `gold`ia (kysymykset)
 // eivät kuulu pisteytykseen. TILA: laatijan (Claude) omat merkinnät – lääkärin tarkistamatta.
 //
 // Merkinnät:  neg = kielteinen, rel = koskee muuta henkilöä kuin potilasta, hedge = epäröivä/epäilevä,
 //             alt = muut hyväksyttävät tyypit (aidosti monitulkintaiset lauseet).
 // Huom: "Hänelle ei ole tehty leikkauksia" (läheinen puhuu potilaasta) on rel=false.
 
-import type { SentenceKind } from "../../lib/clinical/sentence-classifier";
+import type { SentenceKind } from "./sentence-classifier";
+import { SAMPLE_TRANSCRIPT } from "./transcript";
 
 export type Who = "Lääkäri" | "Potilas" | "Läheinen";
 export interface Gold {
@@ -243,3 +246,15 @@ export const GOLD: GoldTranscript[] = [
 export function goldTranscriptText(g: GoldTranscript): string {
   return g.lines.map((l) => `${l.who}: ${l.text}`).join("\n");
 }
+
+export interface SampleConversation {
+  id: string;
+  title: string;
+  text: string;
+}
+
+/** Käyttöliittymän esimerkkivalikko: alkuperäinen oletusesimerkki ensin, sitten kultajoukon keskustelut. */
+export const SAMPLE_CONVERSATIONS: SampleConversation[] = [
+  { id: "esimerkki", title: "Vatsakipu ja läheinen (oletusesimerkki)", text: SAMPLE_TRANSCRIPT },
+  ...GOLD.map((g) => ({ id: g.id, title: g.title, text: goldTranscriptText(g) })),
+];

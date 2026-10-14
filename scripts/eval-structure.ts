@@ -23,7 +23,7 @@ import { splitUnits, type Sentence } from "../lib/clinical/sentences";
 import { parsePastedTranscript } from "../lib/clinical/transcript";
 import { readJevSettings } from "../lib/jev-settings";
 import { finalizeStructuring } from "../lib/workflow/review";
-import { GOLD, goldTranscriptText, type Gold } from "./data/structure-eval-set";
+import { GOLD, goldTranscriptText, type Gold } from "../lib/clinical/sample-conversations";
 
 const useJev = process.argv.includes("--jev");
 const SPEAKER = { Lääkäri: "ammattilainen", Potilas: "potilas", Läheinen: "läheinen" } as const;

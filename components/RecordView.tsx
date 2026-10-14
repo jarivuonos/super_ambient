@@ -11,7 +11,8 @@ import {
   type Proposal,
   type Transcript,
 } from "@/lib/clinical/schemas";
-import { parsePastedTranscript, SAMPLE_TRANSCRIPT, transcriptToText } from "@/lib/clinical/transcript";
+import { SAMPLE_CONVERSATIONS } from "@/lib/clinical/sample-conversations";
+import { parsePastedTranscript, transcriptToText } from "@/lib/clinical/transcript";
 import { hashValue } from "@/lib/util/hash";
 import {
   approveNote,
@@ -325,6 +326,7 @@ export function RecordView({
   const [structured, setStructured] = useState<Structured | null>(null);
   const [pasted, setPasted] = useState("");
   const [showPaste, setShowPaste] = useState(false);
+  const [sampleId, setSampleId] = useState(SAMPLE_CONVERSATIONS[0].id);
   const [busy, setBusy] = useState<null | "structure" | "preview" | "save" | "read">(null);
   const [error, setError] = useState<{ title: string; message: string; detail?: unknown } | null>(null);
   const [preview, setPreview] = useState<{ key: string; body: SaveRequestBody; res: PreviewResponse } | null>(null);
@@ -481,7 +483,14 @@ export function RecordView({
               Litteraatti (muokattava)
             </label>
             <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => setTranscriptText(SAMPLE_TRANSCRIPT, "esimerkki")}>
+              <select aria-label="Esimerkkikeskustelu" value={sampleId} onChange={(e) => setSampleId(e.target.value)} className="max-w-[16rem] rounded-md border border-zinc-300 px-2 py-1 text-sm">
+                {SAMPLE_CONVERSATIONS.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.title}
+                  </option>
+                ))}
+              </select>
+              <Button variant="ghost" onClick={() => setTranscriptText((SAMPLE_CONVERSATIONS.find((s) => s.id === sampleId) ?? SAMPLE_CONVERSATIONS[0]).text, "esimerkki")}>
                 Lataa esimerkkikeskustelu
               </Button>
               <Button variant="ghost" onClick={() => setTranscriptText("")} disabled={!text}>

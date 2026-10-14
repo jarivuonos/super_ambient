@@ -4,7 +4,7 @@ import { splitClauses, splitTranscript } from "../lib/clinical/sentences";
 import { parsePastedTranscript } from "../lib/clinical/transcript";
 import { mockStructure } from "../lib/clinical/mock-structurer";
 import { finalizeStructuring } from "../lib/workflow/review";
-import { GOLD, goldTranscriptText } from "../scripts/data/structure-eval-set";
+import { GOLD, SAMPLE_CONVERSATIONS, goldTranscriptText } from "../lib/clinical/sample-conversations";
 
 describe("rakenteistuksen kultajoukko", () => {
   it("jokainen rivi on yksi lause ja puhujaroolit tunnistetaan", () => {
@@ -73,6 +73,19 @@ describe("rakenteistuksen kultajoukko", () => {
       const fin = finalizeStructuring(mockStructure(t), t);
       expect(fin.ok, g.id).toBe(true);
       expect(fin.warnings, g.id).toEqual([]);
+    }
+  });
+
+  it("käyttöliittymän esimerkkivalikko: oletusesimerkki ensin, sitten kaikki kultajoukon keskustelut", () => {
+    expect(SAMPLE_CONVERSATIONS[0].id).toBe("esimerkki");
+    expect(SAMPLE_CONVERSATIONS).toHaveLength(GOLD.length + 1);
+    expect(new Set(SAMPLE_CONVERSATIONS.map((s) => s.id)).size).toBe(SAMPLE_CONVERSATIONS.length);
+    for (const s of SAMPLE_CONVERSATIONS) {
+      expect(s.title.length).toBeGreaterThan(3);
+      const t = parsePastedTranscript(s.text);
+      expect(t.speakerSource, s.id).toBe("käyttäjän merkinnät"); // puhujaetuliitteet tunnistetaan
+      expect(t.segments.every((x) => x.speaker !== "tuntematon"), s.id).toBe(true);
+      expect(s.text).not.toMatch(/gold|alt:|hedge/); // merkinnät eivät vuoda litteraattiin
     }
   });
 });
