@@ -337,3 +337,9 @@ const IMAGING_CATS = ["RAD", "LP29684-5", "imaging", "CT", "MR", "US", "XR"];
 export function isImagingReport(f: Fact): boolean {
   return f.kind === "diagnostic-report" && (IMAGING_CATS.some((c) => f.label.includes(c)) || /röntgen|rtg|ct|mri|ultra|kuvant|xr/iu.test(f.text));
 }
+
+/** DocumentReference, jonka tyyppi viittaa kuvantamiseen (esim. Epicin "Diagnostic imaging study"). Sanarajat estävät osumat kuten "Doctor". */
+const IMAGING_DOC = /\b(imaging|radiolog\w*|x-?ray|mri|ct|ultrasound|mammogra\w*)\b|röntgen|kuvant|ultraä|magneett/iu;
+export function isImagingDocument(f: Fact): boolean {
+  return f.kind === "document" && IMAGING_DOC.test(f.text);
+}

@@ -1,6 +1,6 @@
 // Sääntöpohjainen MOCK-kysymystulkinta ja faktoihin perustuva vastaus. Ei kielimalli.
 
-import { formatDate, isImagingReport, type Fact } from "./facts";
+import { formatDate, isImagingDocument, isImagingReport, type Fact } from "./facts";
 import { CLARIFY_GENERIC, INTENT_PROFILE, daysAgo, type KnownIntent } from "./intents";
 import type { InfoNeed } from "./schemas";
 
@@ -99,11 +99,19 @@ export function mockAnswer(need: InfoNeed, facts: Fact[], missing: string[], now
       parts.push(...facts.map(line));
       break;
     case "imaging-report": {
-      const img = facts.filter(isImagingReport);
-      const pick = img[0] ?? facts.find((f) => f.kind === "diagnostic-report");
-      if (!pick) return none("kuvantamislausuntoja");
-      parts.push(`Viimeisin lausunto: ${pick.text} (${pick.dateLabel} ${formatDate(pick.date)}) ${ref(pick)}.`);
-      if (!img.length) parts.push("Lausuntoa ei voitu luokitella kuvantamiseksi; tarkista lähteestä.");
+      const time = (f: Fact) => (f.date ? Date.parse(f.date) || 0 : 0);
+      const img = facts.filter((f) => isImagingReport(f) || isImagingDocument(f)).sort((a, b) => time(b) - time(a));
+      const pick = img[0];
+      if (!pick) {
+        const other = facts.find((f) => f.kind === "diagnostic-report");
+        if (!other) return none("kuvantamislausuntoja");
+        parts.push("Kuvantamislausuntoa ei löytynyt haetuista tiedoista.");
+        parts.push(`Löytyi muu lausunto, jota ei voitu luokitella kuvantamiseksi: ${other.text} (${other.dateLabel} ${formatDate(other.date)}) ${ref(other)}.`);
+        break;
+      }
+      const noun = pick.kind === "document" ? "asiakirja" : "lausunto";
+      parts.push(`Viimeisin kuvantamiseen viittaava ${noun}: ${pick.text} (${pick.dateLabel} ${formatDate(pick.date)}) ${ref(pick)}.`);
+      if (pick.kind === "document") parts.push("Kyseessä on asiakirjaviite; sisältöä ei haeta automaattisesti, joten tarkista lähteestä.");
       if (pick.attachedText) parts.push("Lausunnon koko teksti näkyy lähteissä sellaisenaan.");
       break;
     }

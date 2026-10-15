@@ -537,7 +537,7 @@ function buildHtml(p: Provenance, svgs: Map<string, string>, xsdResult: string):
     ["Traceability", "Facts carry resource id and field; proposals carry an exact transcript quote and speaker; saved resources keep a proposal-derived identifier."],
     ["Privacy and security", "Server-side keys, strict request schemas, plain-text rendering, no automatic attachment fetching, minimal logging. Epic login uses PKCE, the token stays in an httpOnly cookie and is never logged or put in errors. The application itself has no login or audit trail yet."],
     ["Adaptability", "Three adapter boundaries (EHR, language, transcription) and a source registry; Epic was added as a second source without a new code path, but another EHR may still need its own search variants and compatibility tests."],
-    ["Testability", "194 deterministic tests against an in-memory FHIR fake and a scripted Jev; separate live evaluations. No UI or route-handler tests."],
+    ["Testability", "200 deterministic tests against an in-memory FHIR fake and a scripted Jev; separate live evaluations. No UI or route-handler tests."],
     ["Performance", "Jev calls about 275 to 310 ms each (measured in evaluations); structuring is one call per sentence or clause. No load testing."],
     ["Availability", "Failures are shown, not hidden; the mock fallback is an explicit per-question choice. Capability cache is per server instance."],
   ];
@@ -569,7 +569,7 @@ function buildHtml(p: Provenance, svgs: Map<string, string>, xsdResult: string):
     ["R9", "No CI; checks run manually.", "Propose CI as a separate change."],
     ["R10", "No audit trail or structured logging; one console.error only.", "Required before any real use."],
     ["R11", "Per-instance caches on serverless hosts give inconsistent status and skipped parameter checks until the first capability check. Epic adapters are built per request and never run the parameter check.", "Check capabilities on first use per instance or cache externally."],
-    ["R12", "Epic reads are verified by hand for a few sandbox patients: login, patient search, encounters and questions on blood pressure, labs, allergies, medications and conditions work. Imaging reports, documents and the overview question are untried, and nothing can be tested automatically because the login needs a browser.", "Try the remaining question types by hand; add Epic-specific search variants where Epic rejects ours."],
+    ["R12", "Epic reads are verified by hand for a few sandbox patients: login, patient search, encounters and questions on blood pressure, labs, allergies, medications, conditions, imaging reports and documents work. The overview question is untried, and nothing can be tested automatically because the login needs a browser.", "Try the overview question by hand; add Epic-specific search variants where Epic rejects ours."],
     ["R13", "Epic access tokens last about an hour and are not refreshed. Every new hostname (preview deployments, a custom domain, the Azure tenant) needs its callback URI registered at Epic first, and Epic compares it literally.", "Register each origin before use; consider a refresh token only if the one-hour limit gets in the way."],
     ["R14", "Epic's patient search finds by name only together with a birth date; the exact accepted combinations are not documented in what was read.", "Test more combinations; prefer identifier lookup or launch context for real use."],
   ];
