@@ -6,7 +6,7 @@ Paikallinen, suomenkielinen web-demo, jossa kliinikko valitsee **synteettisen** 
 2. **Kirjata harjoitusvastaanoton.** Tarjolla ovat äänitys, liitetty litteraatti, käyntimerkintäluonnos ja rakenteiset ehdotukset.
 3. **Tarkistaa, hyväksyä ja tallentaa** hyväksytyt kohdat HAPIin yhtenä transactionina sekä lukea ne takaisin.
 
-> Ensimmäinen kohde on julkinen HAPI FHIR R4 -testipalvelin (`https://hapi.fhir.org/baseR4`). Se ei tarjoa yksityisyyttä, ja sen sisältö nollataan ajoittain. Käytä vain sovelluksen omaa synteettistä aineistoa ja harjoituspuhetta. Sovellus ei tee hoitopäätöksiä.
+> Oletuskohde on julkinen HAPI FHIR R4 -testipalvelin (`https://hapi.fhir.org/baseR4`). Se ei tarjoa yksityisyyttä, ja sen sisältö nollataan ajoittain. Lähteen voi vaihtaa yläpalkin valitsimesta; toinen lähde on Epicin avoin sandbox (vain luku, SMART-kirjautuminen), katso ”FHIR-lähteet ja kirjautuminen”. Käytä vain synteettistä aineistoa ja harjoituspuhetta. Sovellus ei tee hoitopäätöksiä.
 
 ## Käynnistys
 
@@ -64,8 +64,10 @@ Kaikilla resursseilla on demotunniste (`meta.tag` `urn:super-ambient:demo|synthe
 
 ```
 app/api/*            Route handlerit (palvelinpuoli: FHIR-yhteys ja avaimet pysyvät täällä)
+app/api/auth/[source]/  SMART-kirjautuminen: login, callback, logout
 components/          React-käyttöliittymä (Workspace, AskView, RecordView)
-lib/fhir/            EhrAdapter, HapiR4Adapter, HTTP-kerros, hakurakentajat, resurssirakentajat, fixturet
+lib/fhir/            EhrAdapter, HapiR4Adapter, lähderekisteri (sources.ts), HTTP-kerros, hakurakentajat, resurssirakentajat, fixturet
+lib/auth/            PKCE, SMART-kirjautumisvuo, evästeistunto (ei palvelimen muistia)
 lib/clinical/        Skeemat (zod), ClinicalLanguageAdapter, mock-tulkinta ja -rakenteistaja, faktat, kysy-putki
 lib/transcription/   TranscriptionAdapter
 lib/workflow/        Hyväksyntä ja vanheneminen (review.ts), tallennuspolku (save.ts)
@@ -107,6 +109,19 @@ scripts/smoke-hapi.ts  Erillinen integraatiotesti oikeaa HAPIa vasten
   2. Transaction-vastauksen entryt tarkistetaan yksitellen.
   3. Aikakatkaisun jälkeen tila tarkistetaan identifierien avulla ennen uusintaa.
   4. Takaisinluku on oma vaiheensa, ja sen virhe ei tarkoita tallennuksen epäonnistumista.
+
+### FHIR-lähteet ja kirjautuminen
+
+- **Lähderekisteri** (`lib/fhir/sources.ts`) on ainoa paikka, jossa lähteen osoite, tunnistautumistapa, kirjoitusoikeus ja hakumuoto määritellään. Selain lähettää vain lähteen tunnisteen (`sourceId`, oletus `hapi`); palvelin tarkistaa sen rekisteriä vasten, eikä selain voi antaa osoitetta. Uusi lähde on uusi rekisterimerkintä, ei uusi koodipolku.
+- **Lähteen vaihto** nollaa potilaan, kontaktin, hakutulokset ja luonnoksen (hyväksynnät vanhenevat), koska eri palvelimilla on eri potilaat ja kontaktit.
+- **HAPI**: ei tunnistautumista; tallennus sallittu vain sovelluksen demopotilaille.
+- **Epic (sandbox)**: SMART on FHIR, standalone launch, julkinen asiakas (ei salaisuutta) ja PKCE (S256). Vain luku: tallennus, esikatselu ja harjoitusaineiston luonti estetään palvelimella (403) ja käyttöliittymässä.
+  - **Asetus:** `EPIC_CLIENT_ID` (ei salaisuus, mutta pidetään ympäristömuuttujassa `.env.local` ja Vercelissä, ei repossa). Epicille on rekisteröitävä täsmälleen `<origin>/api/auth/epic/callback` (paikallisesti `http://localhost:3000/api/auth/epic/callback`). Muutoksen voimaantulo voi kestää hetken.
+  - **Kulku:** ”Kirjaudu” -> Epicin kirjautumissivu (sandboxin kliinikkotunnukset ovat Epicin dokumentaatiossa) -> `callback` vaihtaa koodin pääsytunnisteeksi -> tunniste tallennetaan `httpOnly`, `SameSite=Strict` -evästeeseen, jota vain palvelin lukee. Selaimen JavaScript ei näe sitä. Kirjautumisosoitteet luetaan palvelimen `.well-known/smart-configuration`-tiedosta, ja niiden on oltava palvelimen omalla originilla.
+  - **Ei palvelimen muistia eikä `SESSION_SECRET`-arvoa:** Epic-liitäntä rakennetaan joka pyynnölle evästeen tunnisteesta, eikä sitä jaeta käyttäjien kesken. Tunniste vanhenee noin tunnissa (ei refresh-tunnistetta); sen jälkeen kirjaudutaan uudelleen. Ilman voimassa olevaa tunnistetta datareitit palauttavat 401.
+  - **Hakumuoto:** Epicin potilashaku löytää nimellä vain, kun mukana on syntymäaika (todettu: sukunimi tai etunimi+sukunimi ei tuottanut osumia, etunimi+sukunimi+syntymäaika tuotti; sukunimi+syntymäaika ja nimi+sukupuoli on testaamatta). Hakukenttä ymmärtää ”Etunimi Sukunimi 1952-05-24”; tunnistehaku `system|arvo` toimii ilman. Painike ”Näytä lähteen testipotilaat” hakee Epicin dokumentoidut testipotilaat MRN:llä.
+  - **Rajaus:** Epic ei ole tallennuskohde. Kun käyttäjäkohtainen kirjoitus joskus lisätään, se on oma suunniteltu työnsä; rekisterin testi vaatii nyt, että kirjoitettava lähde ei vaadi kirjautumista.
+- Kielimalli (Jev) saa Epicistäkin vain kysymystekstin; haettuja potilastietoja ei lähetetä sille.
 
 ### FHIR-rakenteet (v1)
 
@@ -195,4 +210,6 @@ Käyttöliittymä ohittaa vanhentuneet vastaukset sukupolvilaskurilla ja AbortCo
 - Potilashaku näyttää enintään 20 osumaa ilman ”seuraava sivu” -toimintoa; sivutus on toteutettu adapterissa, mutta käyttöliittymästä se puuttuu.
 - Hakuehdot tarkistetaan viimeisintä onnistunutta CapabilityStatementia vasten; ennen ensimmäistä yhteystarkistusta tarkistus ohitetaan.
 - Kysy-näkymän yhteenveto käyttää palvelimen kelloa ”viimeiset 90 vrk” -rajaukseen.
+- Epic-lähteen hakuja on kokeiltu vain osittain: verenpainekysely ja kontaktihaku toimivat; laboratorio-, allergia-, lääkitys- ja diagnoosikysymykset sekä Epicin `_sort`-tuki ovat tarkistamatta. Kirjautumista Epicin sandboxia vasten ei voi testata automaattisesti (se vaatii käyttäjän selaimen), vain jäljitelmäpalvelimella.
+- Epic-pääsytunniste vanhenee noin tunnissa, eikä uusintakirjautumista tehdä automaattisesti. Vercel-osoitteen rekisteröinti Epicille ja sen toimivuus on tarkistamatta.
 - Julkisen HAPIn tallennus on tarkoitettu vain demoon, ja aineisto voi kadota palvelimen nollauksessa. Luo silloin harjoitusaineisto uudelleen.

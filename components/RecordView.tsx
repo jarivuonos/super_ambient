@@ -308,6 +308,8 @@ function ProposalRow({ p, stale, savedRef, onChange }: { p: Proposal; stale: boo
 export function RecordView({
   patientId,
   encounterId,
+  sourceId,
+  writable,
   isDemoPatient,
   guard,
   status,
@@ -315,6 +317,9 @@ export function RecordView({
 }: {
   patientId: string;
   encounterId: string | null;
+  sourceId: string;
+  /** false: lähde on vain luku; esikatselu ja tallennus estetään. */
+  writable: boolean;
   isDemoPatient: boolean;
   guard: Guard;
   status: StatusResponse | null;
@@ -399,6 +404,7 @@ export function RecordView({
       note: noteApproved ? structured.note : null,
       proposals: savable,
       createdAt: new Date().toISOString(),
+      sourceId,
     };
   }
 
@@ -438,7 +444,7 @@ export function RecordView({
     const refs = outcome?.entries.map((e) => e.reference).filter((r): r is string => !!r) ?? [];
     if (!refs.length) return;
     setBusy("read");
-    const res = await guard((signal) => api<ReadResult>("/api/read", { json: { patientId, references: refs }, signal }));
+    const res = await guard((signal) => api<ReadResult>("/api/read", { json: { patientId, references: refs, sourceId }, signal }));
     if (res === null) return;
     setBusy(null);
     if (!res.ok) setError({ title: "Takaisinluku ei onnistunut", message: res.error.message });
@@ -464,8 +470,9 @@ export function RecordView({
 
   return (
     <div className="space-y-4">
+      {!writable && <ErrorBox tone="warn" title="Lähde on vain luku" message="Valittuun FHIR-lähteeseen ei tallenneta. Voit harjoitella litteraatin rakenteistamista, mutta esikatselu ja tallennus on estetty." />}
       {!encounterId && <ErrorBox tone="warn" title="Valitse palvelukontakti" message="Kirjaus tallennetaan valittuun kontaktiin. Voit harjoitella litteraatin rakenteistamista, mutta tallennus vaatii kontaktin." />}
-      {!isDemoPatient && <ErrorBox tone="warn" title="Potilas ei ole sovelluksen demoaineistoa" message="Tallennus HAPIin sallitaan vain sovelluksen luomille synteettisille demopotilaille." />}
+      {writable && !isDemoPatient && <ErrorBox tone="warn" title="Potilas ei ole sovelluksen demoaineistoa" message="Tallennus HAPIin sallitaan vain sovelluksen luomille synteettisille demopotilaille." />}
 
       <Section title="1. Harjoitusvastaanotto">
         <Recorder
@@ -620,7 +627,7 @@ export function RecordView({
               </ul>
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button onClick={() => void doPreview()} disabled={stale || !encounterId || busy !== null || (!noteApproved && savable.length === 0)}>
+              <Button onClick={() => void doPreview()} disabled={stale || !writable || !encounterId || busy !== null || (!noteApproved && savable.length === 0)}>
                 {busy === "preview" ? "Esikatsellaan…" : "Esikatsele tallennus"}
               </Button>
               <Button variant="primary" onClick={() => void doSave()} disabled={!previewValid || !preview?.res.ok || busy !== null || stale}>

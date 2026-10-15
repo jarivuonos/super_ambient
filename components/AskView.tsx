@@ -63,11 +63,13 @@ function FactRow({ f }: { f: Fact }) {
 export function AskView({
   patientId,
   encounterId,
+  sourceId,
   guard,
   language,
 }: {
   patientId: string;
   encounterId: string | null;
+  sourceId: string;
   guard: Guard;
   language?: StatusResponse["language"];
 }) {
@@ -81,7 +83,7 @@ export function AskView({
     setQuestion(q);
     setLoading(true);
     setError(null);
-    const res = await guard((signal) => api<AskResult>("/api/ask", { json: { question: q, patientId, encounterId, interpreter }, signal }));
+    const res = await guard((signal) => api<AskResult>("/api/ask", { json: { question: q, patientId, encounterId, interpreter, sourceId }, signal }));
     if (res === null) return; // potilas vaihtui: vanha vastaus hylätään
     setLoading(false);
     if (!res.ok) {

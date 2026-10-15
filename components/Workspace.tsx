@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DEMO_TAG_CODE, DEMO_TAG_SYSTEM } from "@/lib/fhir/search-builders";
+import { AUTH_ERROR_MESSAGES, isAuthErrorCode } from "@/lib/auth/errors";
+import { DEFAULT_SOURCE_ID, SOURCES, findSource, toPublicSource } from "@/lib/fhir/sources";
 import type { Encounter, Patient } from "@/lib/fhir/types";
 import { api, encounterLabel, patientName, type ApiResult, type EncounterSearch, type PatientSearch, type SeedPreview, type SeedResult, type StatusResponse } from "./api";
 import { AskView } from "./AskView";
@@ -17,7 +19,7 @@ function sourceLabel(src: StatusResponse["language"]["capabilities"]["answer"], 
   return src === "model" ? name : src === "classified" ? `${name} luokittelee lauseet, sovellus poimii lainaukset ja arvot` : src === "mock" ? "mock-säännöt (ei kielimalli)" : src === "deterministic" ? "sovelluksen oma koonti haetuista resursseista" : "ei käytössä";
 }
 
-function StatusPanel({ status, error, onRefresh, refreshing }: { status: StatusResponse | null; error: string | null; onRefresh: () => void; refreshing: boolean }) {
+function StatusPanel({ status, error, onRefresh, refreshing, sourceLabel: srcLabel }: { status: StatusResponse | null; error: string | null; onRefresh: () => void; refreshing: boolean; sourceLabel: string }) {
   const check = status?.fhir.check;
   return (
     <Section title="Yhteys ja palvelut" actions={<Button onClick={onRefresh} disabled={refreshing}>{refreshing ? "Tarkistetaan…" : "Tarkista yhteys"}</Button>}>
@@ -74,12 +76,46 @@ function StatusPanel({ status, error, onRefresh, refreshing }: { status: StatusR
           </dd>
         </dl>
       )}
-      <p className="mt-2 text-[11px] text-zinc-500">Julkinen HAPI-testipalvelin: ei yksityisyyttä, sisältö nollataan ajoittain. Käytä vain synteettistä aineistoa.</p>
+      <p className="mt-2 text-[11px] text-zinc-500">Lähde: {srcLabel}. Käytä vain synteettistä aineistoa; testipalvelimilla ei ole yksityisyyttä ja sisältö voidaan nollata.</p>
     </Section>
   );
 }
 
-function SeedPanel({ onSeeded }: { onSeeded: () => void }) {
+function LoginPanel({ sourceId, auth, authError, onChanged }: { sourceId: string; auth: Extract<StatusResponse["auth"], { required: true }>; authError: string | null; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  async function logout() {
+    setBusy(true);
+    await api(`/api/auth/${sourceId}/logout`, { method: "POST" });
+    setBusy(false);
+    onChanged();
+  }
+  return (
+    <Section title="Kirjautuminen">
+      {authError && <ErrorBox title="Kirjautuminen epäonnistui" message={authError} />}
+      {!auth.configured ? (
+        <ErrorBox tone="warn" title="Asiakastunnus puuttuu" message="Palvelimen asetuksista puuttuu tämän lähteen asiakastunnus (EPIC_CLIENT_ID). Lisää se ja käynnistä palvelin uudelleen." />
+      ) : auth.loggedIn ? (
+        <div className="space-y-2 text-xs">
+          <p>
+            <Badge tone="good">kirjautunut</Badge> Tunniste voimassa {formatTime(auth.expiresAt)} asti.
+          </p>
+          <Button onClick={() => void logout()} disabled={busy}>
+            Kirjaudu ulos
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-2 text-xs">
+          <p className="text-zinc-700">Tämä lähde vaatii kirjautumisen. Kirjautuminen tapahtuu lähteen omalla sivulla; sovellus ei näe tunnuksiasi.</p>
+          <a href={`/api/auth/${sourceId}/login`} className="inline-block rounded-md bg-teal-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-800">
+            Kirjaudu
+          </a>
+        </div>
+      )}
+    </Section>
+  );
+}
+
+function SeedPanel({ sourceId, sourceName, onSeeded }: { sourceId: string; sourceName: string; onSeeded: () => void }) {
   const [preview, setPreview] = useState<SeedPreview | null>(null);
   const [result, setResult] = useState<SeedResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -94,7 +130,7 @@ function SeedPanel({ onSeeded }: { onSeeded: () => void }) {
   async function send() {
     setBusy(true);
     setError(null);
-    const res = await api<SeedResult>("/api/seed", { method: "POST" });
+    const res = await api<SeedResult>("/api/seed", { json: { sourceId } });
     setBusy(false);
     if (!res.ok) setError({ message: res.error.message, detail: res.error.detail });
     else {
@@ -108,7 +144,7 @@ function SeedPanel({ onSeeded }: { onSeeded: () => void }) {
     <Section title="Harjoitusaineisto">
       {!preview && (
         <Button onClick={() => void load()} className="w-full">
-          Luo harjoitusaineisto HAPIin…
+          Luo harjoitusaineisto ({sourceName})…
         </Button>
       )}
       {preview && (
@@ -121,7 +157,7 @@ function SeedPanel({ onSeeded }: { onSeeded: () => void }) {
           </ul>
           <div className="flex gap-2">
             <Button variant="primary" onClick={() => void send()} disabled={busy}>
-              {busy ? "Lähetetään…" : "Lähetä HAPIin"}
+              {busy ? "Lähetetään…" : `Lähetä: ${sourceName}`}
             </Button>
             <Button variant="ghost" onClick={() => setPreview(null)} disabled={busy}>
               Peru
@@ -144,9 +180,12 @@ function SeedPanel({ onSeeded }: { onSeeded: () => void }) {
 }
 
 export function Workspace() {
+  const [sourceId, setSourceId] = useState(DEFAULT_SOURCE_ID);
+  const source = toPublicSource(SOURCES.find((s) => s.id === sourceId) ?? SOURCES[0]);
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const [query, setQuery] = useState("");
   const [demoOnly, setDemoOnly] = useState(true);
@@ -167,19 +206,32 @@ export function Workspace() {
 
   const loadStatus = useCallback(async (refresh: boolean) => {
     setRefreshing(true);
-    const res = await api<StatusResponse>(`/api/status${refresh ? "?refresh=1" : ""}`);
+    const res = await api<StatusResponse>(`/api/status?source=${encodeURIComponent(sourceId)}${refresh ? "&refresh=1" : ""}`);
     setRefreshing(false);
     if (res.ok) {
       setStatus(res.data);
       setStatusError(null);
     } else setStatusError(res.error.message);
-  }, []);
+  }, [sourceId]);
 
   useEffect(() => {
-    // Tilan haku käynnistyksessä on lukuoperaatio (GET /metadata); mitään ei kirjoiteta.
+    // Tilan haku käynnistyksessä ja lähteen vaihdossa on lukuoperaatio (GET /metadata); mitään ei kirjoiteta.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadStatus(false);
   }, [loadStatus]);
+
+  useEffect(() => {
+    // Paluu kirjautumisesta: valitse lähde ja näytä mahdollinen virhe, sitten siivoa osoite.
+    const q = new URLSearchParams(window.location.search);
+    const src = q.get("source");
+    const err = q.get("auth_error");
+    if (src && findSource(src)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSourceId(src);
+    }
+    if (err) setAuthError(isAuthErrorCode(err) ? AUTH_ERROR_MESSAGES[err] : "Kirjautuminen epäonnistui.");
+    if (src || err) window.history.replaceState(null, "", window.location.pathname);
+  }, []);
 
   const guard: Guard = useCallback(async (fn) => {
     const gen = genRef.current;
@@ -208,11 +260,62 @@ export function Workspace() {
     searchAbort.current = ctrl;
     setSearching(true);
     setPatientError(null);
-    const res = await api<PatientSearch>("/api/patients", { json: { query: q, demoOnly: demo }, signal: ctrl.signal });
+    const res = await api<PatientSearch>("/api/patients", { json: { query: q, demoOnly: source.demoFilter && demo, sourceId }, signal: ctrl.signal });
     if (ctrl.signal.aborted) return;
     setSearching(false);
     if (!res.ok) setPatientError({ message: res.error.message, detail: res.error.detail });
     else setPatients(res.data);
+  }
+
+  /** Eri FHIR-palvelimilla on omat potilaat ja kontaktit: lähteen vaihto nollaa koko kontekstin. */
+  function selectSource(id: string) {
+    if (id === sourceId) return;
+    if (!confirmLeave()) return;
+    resetContext();
+    searchAbort.current?.abort();
+    setSourceId(id);
+    setStatus(null);
+    setStatusError(null);
+    setAuthError(null);
+    setSearching(false);
+    setPatients(null);
+    setPatientError(null);
+    setPatient(null);
+    setEncounters(null);
+    setEncounterError(null);
+    setEncounter(null);
+    setDemoOnly(true);
+    setQuery("");
+    setTab("ask");
+  }
+
+  /** Lähteen dokumentoidut testipotilaat: haetaan yksi kerrallaan tunnisteella ja yhdistetään yhdeksi listaksi. */
+  async function showTestPatients() {
+    searchAbort.current?.abort();
+    const ctrl = new AbortController();
+    searchAbort.current = ctrl;
+    setSearching(true);
+    setPatientError(null);
+    const results = await Promise.all(source.testPatients.map((t) => api<PatientSearch>("/api/patients", { json: { query: t.query, demoOnly: false, sourceId }, signal: ctrl.signal })));
+    if (ctrl.signal.aborted) return;
+    setSearching(false);
+    const ok = results.flatMap((r) => (r.ok && r.data.state !== "error" ? [r.data] : []));
+    const failed = results.length - ok.length;
+    if (ok.length === 0) {
+      const first = results.find((r) => !r.ok);
+      setPatientError({ message: first && !first.ok ? first.error.message : "Testipotilaiden haku epäonnistui.", detail: first && !first.ok ? first.error.detail : undefined });
+      return;
+    }
+    const resources = ok.flatMap((r) => r.resources).sort((a, b) => patientName(a).localeCompare(patientName(b), "fi"));
+    setPatients({
+      state: resources.length ? "ok" : "empty",
+      query: `${source.testPatients.length} tunnistehakua`,
+      purpose: "Lähteen testipotilaat",
+      resources,
+      warnings: failed ? [`${failed} testipotilaan haku epäonnistui.`] : [],
+      truncated: false,
+      rejectedOtherPatient: 0,
+    });
   }
 
   async function selectPatient(p: Patient) {
@@ -223,7 +326,7 @@ export function Workspace() {
     setEncounter(null);
     setEncounters(null);
     setEncounterError(null);
-    const res = await guard((signal) => api<EncounterSearch>("/api/encounters", { json: { patientId: p.id }, signal }));
+    const res = await guard((signal) => api<EncounterSearch>("/api/encounters", { json: { patientId: p.id, sourceId }, signal }));
     if (res === null) return;
     if (!res.ok) setEncounterError(res.error.message);
     else setEncounters(res.data);
@@ -237,7 +340,8 @@ export function Workspace() {
     setEncounter(e);
   }
 
-  const ctxKey = `${patient?.id ?? "-"}|${encounter?.id ?? "-"}`;
+  const needsLogin = status?.auth.required === true && !status.auth.loggedIn;
+  const ctxKey = `${sourceId}|${patient?.id ?? "-"}|${encounter?.id ?? "-"}`;
   const fhirBase = status?.fhir.baseUrl ?? "…";
 
   return (
@@ -246,6 +350,16 @@ export function Workspace() {
       <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/95 px-4 py-2 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-1 text-sm">
           <span className="font-semibold text-teal-800">Potilastyötila · demo</span>
+          <label className="flex items-center gap-1 text-xs text-zinc-600">
+            FHIR-lähde
+            <select aria-label="FHIR-lähde" value={sourceId} onChange={(e) => selectSource(e.target.value)} className="rounded-md border border-zinc-300 px-2 py-1 text-sm text-zinc-900">
+              {SOURCES.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <span>
             <span className="text-zinc-500">Potilas: </span>
             {patient ? (
@@ -283,24 +397,46 @@ export function Workspace() {
               }}
             >
               <input aria-label="Potilashaku" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nimi, id tai system|value" className="min-w-0 flex-1 rounded-md border border-zinc-300 px-2 py-1.5 text-sm" />
-              <Button type="submit" disabled={searching}>
+              <Button type="submit" disabled={searching || needsLogin}>
                 Hae
               </Button>
             </form>
-            <label className="mt-2 flex items-center gap-2 text-xs text-zinc-700">
-              <input type="checkbox" checked={demoOnly} onChange={(e) => setDemoOnly(e.target.checked)} />
-              Vain sovelluksen demoaineisto
-            </label>
-            <Button variant="ghost" className="mt-1 w-full text-xs" onClick={() => void searchPatients("", true)}>
-              Näytä demopotilaat
-            </Button>
+            {source.patientNameSearch === "family-given" && (
+              <p className="mt-1 text-[11px] text-zinc-500">Nimihaku: &quot;Etunimi Sukunimi&quot; ja tarvittaessa syntymäaika (1987-09-12 tai 12.9.1987) ja sukupuoli (male/female). Tunnistehaku: system|arvo. Testipotilaat näet alla olevasta painikkeesta.</p>
+            )}
+            {source.testPatients.length > 0 && (
+              <Button variant="ghost" className="mt-1 w-full text-xs" onClick={() => void showTestPatients()} disabled={searching || needsLogin}>
+                Näytä lähteen testipotilaat
+              </Button>
+            )}
+            {source.demoFilter && (
+              <>
+                <label className="mt-2 flex items-center gap-2 text-xs text-zinc-700">
+                  <input type="checkbox" checked={demoOnly} onChange={(e) => setDemoOnly(e.target.checked)} />
+                  Vain sovelluksen demoaineisto
+                </label>
+                <Button variant="ghost" className="mt-1 w-full text-xs" onClick={() => void searchPatients("", true)}>
+                  Näytä demopotilaat
+                </Button>
+              </>
+            )}
             {patientError && <ErrorBox title="Potilashaku epäonnistui" message={patientError.message} detail={patientError.detail} />}
             {patients && (
               <div className="mt-2">
                 {patients.state === "error" ? (
                   <ErrorBox title="Potilashaku epäonnistui" message={patients.error?.message} detail={patients.error} />
                 ) : patients.resources.length === 0 ? (
-                  <p className="text-xs text-zinc-600">Ei osumia. {demoOnly && "Luo tarvittaessa harjoitusaineisto alta."}</p>
+                  <div className="text-xs text-zinc-600">
+                    <p>Ei osumia. {source.demoFilter && demoOnly && source.writable && "Luo tarvittaessa harjoitusaineisto alta."}</p>
+                    {source.patientNameSearch === "family-given" && <p className="mt-1 text-amber-800">Tämä lähde löytää nimellä yleensä vain, kun mukana on myös syntymäaika (esim. 1987-09-12). Tunnistehaku (system|arvo) toimii ilman.</p>}
+                    <details className="mt-1">
+                      <summary className="cursor-pointer text-zinc-500">Tekniset lisätiedot</summary>
+                      <p className="break-all">
+                        Haku: <code>{patients.query}</code>
+                      </p>
+                      <p>Tila: {patients.state}{typeof patients.total === "number" ? ` · total ${patients.total}` : ""}</p>
+                    </details>
+                  </div>
                 ) : (
                   <ul className="space-y-1">
                     {patients.resources.map((p) => (
@@ -343,15 +479,16 @@ export function Workspace() {
             </Section>
           )}
 
-          <StatusPanel status={status} error={statusError} onRefresh={() => void loadStatus(true)} refreshing={refreshing} />
-          <SeedPanel onSeeded={() => void searchPatients("", true)} />
+          {status?.auth.required && <LoginPanel sourceId={sourceId} auth={status.auth} authError={authError} onChanged={() => void loadStatus(true)} />}
+          <StatusPanel status={status} error={statusError} onRefresh={() => void loadStatus(true)} refreshing={refreshing} sourceLabel={source.label} />
+          {source.writable && <SeedPanel sourceId={sourceId} sourceName={source.label} onSeeded={() => void searchPatients("", true)} />}
         </aside>
 
         <main className="min-w-0 space-y-4">
           {!patient ? (
             <Section title="Aloita">
               <ol className="list-decimal space-y-1 pl-5 text-sm text-zinc-700">
-                <li>Luo tarvittaessa harjoitusaineisto HAPIin (vasemmalla alhaalla).</li>
+                <li>Valitse FHIR-lähde ylhäältä.{source.writable && " Luo tarvittaessa harjoitusaineisto (vasemmalla alhaalla)."}</li>
                 <li>Hae ja valitse synteettinen potilas sekä palvelukontakti.</li>
                 <li>Kysy potilastiedoista tai kirjaa harjoitusvastaanotto.</li>
               </ol>
@@ -374,10 +511,10 @@ export function Workspace() {
               {/* key: potilaan/kontaktin vaihto nollaa näkymien tilan. */}
               <div key={ctxKey}>
                 <div hidden={tab !== "ask"}>
-                  <AskView patientId={patient.id!} encounterId={encounter?.id ?? null} guard={guard} language={status?.language} />
+                  <AskView patientId={patient.id!} encounterId={encounter?.id ?? null} sourceId={sourceId} guard={guard} language={status?.language} />
                 </div>
                 <div hidden={tab !== "record"}>
-                  <RecordView patientId={patient.id!} encounterId={encounter?.id ?? null} isDemoPatient={isDemo(patient)} guard={guard} status={status} onDirtyChange={onDirtyChange} />
+                  <RecordView patientId={patient.id!} encounterId={encounter?.id ?? null} sourceId={sourceId} writable={source.writable} isDemoPatient={isDemo(patient)} guard={guard} status={status} onDirtyChange={onDirtyChange} />
                 </div>
               </div>
             </>

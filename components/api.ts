@@ -45,6 +45,7 @@ export async function api<T>(path: string, init?: RequestInit & { json?: unknown
 }
 
 export interface StatusResponse {
+  auth: { required: false } | { required: true; configured: boolean; loggedIn: boolean; expiresAt: string | null };
   fhir: {
     adapter: string;
     baseUrl: string;
@@ -86,6 +87,7 @@ export interface SaveRequestBody {
   proposals: Proposal[];
   createdAt: string;
   expectedSnapshot?: string;
+  sourceId: string;
 }
 
 export interface PreviewResponse {
