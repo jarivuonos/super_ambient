@@ -16,6 +16,7 @@ import {
   patientIdentifierSearch,
   patientSearch,
   toQueryPath,
+  type PatientNameSearch,
   type SearchSpec,
 } from "./search-builders";
 import type { Bundle, Encounter, OperationOutcomeIssue, Patient, Resource } from "./types";
@@ -86,14 +87,18 @@ export function parseTransactionResponse(body: Bundle, baseUrl: string): Transac
 }
 
 export class HapiR4Adapter implements EhrAdapter {
-  readonly name = "HAPI FHIR R4";
+  readonly name: string;
   readonly baseUrl: string;
   private http: FhirHttp;
   private lastSuccessAt?: string;
   /** Viimeisin onnistunut kyvykkyystieto; hakuehdot tarkistetaan sitä vasten. */
   private capabilities?: CapabilitySummary;
 
-  constructor(opts: FhirHttpOptions) {
+  private patientNameSearch: PatientNameSearch;
+
+  constructor(opts: FhirHttpOptions & { name?: string; patientNameSearch?: PatientNameSearch }) {
+    this.name = opts.name ?? "HAPI FHIR R4";
+    this.patientNameSearch = opts.patientNameSearch ?? "name";
     this.http = new FhirHttp(opts);
     this.baseUrl = this.http.baseUrl;
   }
@@ -190,7 +195,7 @@ export class HapiR4Adapter implements EhrAdapter {
   async searchPatients(query: string, demoOnly: boolean, signal?: AbortSignal): Promise<SearchResult<Patient>> {
     const q = query.trim();
     // `system|value` tulkitaan identifier-hauksi.
-    const spec = q.includes("|") ? patientIdentifierSearch(q, demoOnly) : patientSearch(q, demoOnly);
+    const spec = q.includes("|") ? patientIdentifierSearch(q, demoOnly) : patientSearch(q, demoOnly, this.patientNameSearch);
     return (await this.searchPaged(spec, { maxPages: 1, maxResources: 20 }, signal)) as SearchResult<Patient>;
   }
 

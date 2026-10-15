@@ -175,12 +175,75 @@ export type BuilderName = keyof typeof builders;
 
 // --- Potilas- ja kontaktihaut ---
 
-export function patientSearch(query: string, demoOnly: boolean): SearchSpec {
+export interface NameQuery {
+  family: string;
+  given?: string;
+  /** ISO-päivä (YYYY-MM-DD), jos haussa oli syntymäaika (ISO tai p.k.vvvv). */
+  birthdate?: string;
+  gender?: "male" | "female" | "other" | "unknown";
+}
+
+const GENDER_WORDS: Record<string, NameQuery["gender"]> = {
+  male: "male",
+  mies: "male",
+  female: "female",
+  nainen: "female",
+  other: "other",
+  unknown: "unknown",
+};
+
+function toIsoDate(tok: string): string | undefined {
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(tok);
+  const fi = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(tok);
+  const [y, m, d] = iso ? [iso[1], iso[2], iso[3]] : fi ? [fi[3], fi[2].padStart(2, "0"), fi[1].padStart(2, "0")] : [];
+  if (!y) return undefined;
+  const t = new Date(`${y}-${m}-${d}T00:00:00Z`);
+  return Number.isNaN(t.getTime()) || t.toISOString().slice(0, 10) !== `${y}-${m}-${d}` ? undefined : `${y}-${m}-${d}`;
+}
+
+/**
+ * "Sukunimi", "Etunimi Sukunimi" tai "Sukunimi, Etunimi", valinnaisesti syntymäaika ja sukupuoli
+ * ("Etunimi Sukunimi 1987-09-12 female"). Useampi etunimi: vain ensimmäinen.
+ */
+export function splitName(q: string): NameQuery {
+  const out: Partial<NameQuery> = {};
+  const rest: string[] = [];
+  for (const tok of q.split(/[\s]+/).filter(Boolean)) {
+    const date = toIsoDate(tok.replace(/,$/, ""));
+    const gender = GENDER_WORDS[tok.toLowerCase()];
+    if (date && !out.birthdate) out.birthdate = date;
+    else if (gender && !out.gender) out.gender = gender;
+    else rest.push(tok);
+  }
+  const text = rest.join(" ");
+  const comma = text.split(",").map((x) => x.trim()).filter(Boolean);
+  let family = "";
+  let given: string | undefined;
+  if (comma.length >= 2) {
+    family = comma[0].split(/\s+/)[0];
+    given = comma[1].split(/\s+/)[0];
+  } else {
+    const words = text.split(/\s+/).filter(Boolean);
+    if (words.length === 1) family = words[0];
+    else if (words.length > 1) [given, family] = [words[0], words[words.length - 1]];
+  }
+  return { family, given, birthdate: out.birthdate, gender: out.gender };
+}
+
+export type PatientNameSearch = "name" | "family-given";
+
+export function patientSearch(query: string, demoOnly: boolean, nameSearch: PatientNameSearch = "name"): SearchSpec {
   const q = query.trim();
   const params: [string, string][] = [];
   if (/^[A-Za-z0-9\-.]{1,64}$/.test(q) && /\d/.test(q)) {
     // Numeroita sisältävä merkkijono tulkitaan tunnisteeksi (id tai identifier).
     params.push(["_id", q]);
+  } else if (q && nameSearch === "family-given") {
+    const { family, given, birthdate, gender } = splitName(q.slice(0, 80));
+    if (family) params.push(["family", family]);
+    if (given) params.push(["given", given]);
+    if (birthdate) params.push(["birthdate", birthdate]);
+    if (gender) params.push(["gender", gender]);
   } else if (q) {
     params.push(["name", q.slice(0, 80)]);
   }

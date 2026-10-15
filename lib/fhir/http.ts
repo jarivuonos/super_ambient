@@ -29,6 +29,8 @@ export interface FhirHttpOptions {
   fetchImpl?: typeof fetch;
   /** Odotus uusintojen välillä (ms); testeissä 0. */
   retryDelayMs?: number;
+  /** OAuth-pääsytunniste; lähetetään Bearer-otsakkeena vain sallitulle palvelimelle. */
+  accessToken?: string;
 }
 
 const MAX_REDIRECTS = 3;
@@ -99,6 +101,7 @@ export class FhirHttp {
   private readRetries: number;
   private fetchImpl: typeof fetch;
   private retryDelayMs: number;
+  private accessToken?: string;
 
   constructor(opts: FhirHttpOptions) {
     this.baseUrl = opts.baseUrl.replace(/\/+$/, "");
@@ -107,6 +110,7 @@ export class FhirHttp {
     this.readRetries = opts.readRetries ?? 2;
     this.fetchImpl = opts.fetchImpl ?? fetch;
     this.retryDelayMs = opts.retryDelayMs ?? 400;
+    this.accessToken = opts.accessToken;
   }
 
   /** Muodostaa absoluuttisen osoitteen suhteellisesta polusta. */
@@ -159,6 +163,7 @@ export class FhirHttp {
           method,
           headers: {
             Accept: FHIR_JSON,
+            ...(this.accessToken ? { Authorization: `Bearer ${this.accessToken}` } : {}),
             ...(body !== undefined ? { "Content-Type": `${FHIR_JSON}; charset=utf-8` } : {}),
           },
           body: body !== undefined ? JSON.stringify(body) : undefined,

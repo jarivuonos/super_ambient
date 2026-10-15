@@ -81,3 +81,44 @@ describe("tiedontarpeen skeema ja hakusuunnitelma", () => {
     expect(planSearches(need({ intent: "unknown" }), { patientId: "1" })).toHaveLength(0);
   });
 });
+
+describe("potilashaun nimimuoto", () => {
+  const q = (spec: { params: [string, string][] }) => spec.params.filter(([k]) => !k.startsWith("_")).map(([k, v]) => `${k}=${v}`);
+
+  it("oletus: yksi name-parametri", () => {
+    expect(q(patientSearch("Warren McGinnis", false))).toEqual(["name=Warren McGinnis"]);
+  });
+
+  it("family-given: yksi sana on sukunimi", () => {
+    expect(q(patientSearch("McGinnis", false, "family-given"))).toEqual(["family=McGinnis"]);
+  });
+
+  it("family-given: 'Etunimi Sukunimi' ja 'Sukunimi, Etunimi' antavat saman haun; keskinimet ohitetaan", () => {
+    const want = ["family=McGinnis", "given=Warren"];
+    expect(q(patientSearch("Warren McGinnis", false, "family-given"))).toEqual(want);
+    expect(q(patientSearch("McGinnis, Warren", false, "family-given"))).toEqual(want);
+    expect(q(patientSearch("Warren James McGinnis", false, "family-given"))).toEqual(want);
+  });
+
+  it("numeroita sisältävä haku on edelleen tunnistehaku kaikilla nimimuodoilla", () => {
+    expect(patientSearch("e0w0LEDC.1", false, "family-given").params).toContainEqual(["_id", "e0w0LEDC.1"]);
+  });
+
+  it("tyhjä haku ei lisää nimiparametreja", () => {
+    expect(q(patientSearch("  ", false, "family-given"))).toEqual([]);
+  });
+
+  it("family-given: syntymäaika (ISO tai p.k.vvvv) ja sukupuoli tulevat omiksi hakuehdoikseen", () => {
+    const want = ["family=McGinnis", "given=Warren", "birthdate=1952-05-24", "gender=male"];
+    expect(q(patientSearch("Warren McGinnis 1952-05-24 male", false, "family-given"))).toEqual(want);
+    expect(q(patientSearch("McGinnis, Warren 24.5.1952 mies", false, "family-given"))).toEqual(want);
+  });
+
+  it("virheellinen päivämäärä ei muutu hakuehdoksi", () => {
+    expect(q(patientSearch("Warren McGinnis 31.2.1952", false, "family-given")).some((p) => p.startsWith("birthdate"))).toBe(false);
+  });
+
+  it("oletusmuoto (name) ei erottele päivää tai sukupuolta", () => {
+    expect(q(patientSearch("Warren McGinnis 1952-05-24", false))).toEqual(["name=Warren McGinnis 1952-05-24"]);
+  });
+});

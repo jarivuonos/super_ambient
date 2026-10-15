@@ -8,6 +8,7 @@ import type { CapabilitySummary, EhrAdapter, ValidationResult } from "../fhir/eh
 import { describeIssues } from "../fhir/http";
 import { normalizeReference } from "../fhir/patient-guard";
 import { buildSaveBundle, type SaveMapEntry } from "../fhir/resource-builders";
+import { SourceIdSchema } from "../fhir/sources";
 import { DEMO_TAG_CODE, DEMO_TAG_SYSTEM, SAVED_IDENTIFIER_SYSTEM } from "../fhir/search-builders";
 import type { Bundle, Resource } from "../fhir/types";
 import { allowedTarget, isApprovalValid, isNoteApproved } from "./review";
@@ -20,8 +21,10 @@ export const SaveRequestSchema = z.strictObject({
   proposals: z.array(ProposalSchema).max(100),
   createdAt: z.iso.datetime({ offset: true }),
   expectedSnapshot: z.string().optional(),
+  sourceId: SourceIdSchema,
 });
-export type SaveRequest = z.infer<typeof SaveRequestSchema>;
+/** Syöttötyyppi: `sourceId` on valinnainen (puuttuva = oletuslähde); skeema täyttää sen. */
+export type SaveRequest = z.input<typeof SaveRequestSchema>;
 
 export interface PreparedSave {
   ok: boolean;
