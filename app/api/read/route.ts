@@ -1,18 +1,22 @@
 import { z } from "zod";
 import { belongsToPatient } from "@/lib/fhir/patient-guard";
-import { getEhr, jsonError, logError } from "@/lib/services";
+import { SourceIdSchema } from "@/lib/fhir/sources";
+import { jsonError, logError, resolveEhr } from "@/lib/services";
 
 const Body = z.strictObject({
   patientId: z.string().regex(/^[A-Za-z0-9\-.]{1,64}$/),
   references: z.array(z.string().regex(/^(Observation|Condition|DocumentReference)\/[A-Za-z0-9\-.]{1,64}$/)).max(50),
+  sourceId: SourceIdSchema,
 });
 
 /** Lukee tallennetut resurssit takaisin. Palauttaa vain valitulle potilaalle kuuluvat. */
 export async function POST(request: Request) {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return jsonError("Virheellinen pyyntö.", 400);
+  const r = resolveEhr(parsed.data.sourceId, request);
+  if (r.response) return r.response;
+  const ehr = r.ehr;
   try {
-    const ehr = getEhr();
     const results = await Promise.all(
       parsed.data.references.map(async (ref) => {
         const [rt, id] = ref.split("/");

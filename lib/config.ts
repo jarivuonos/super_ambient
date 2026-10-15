@@ -4,7 +4,6 @@ import { DEFAULT_JEV_MODEL, readJevSettings, readStructuringSettings, type JevSe
 // Palvelinpuolen asetukset. Avaimet luetaan vain ympäristömuuttujista.
 
 export interface AppConfig {
-  fhirBaseUrl: string;
   fhirTimeoutMs: number;
   llm: {
     provider: "mock" | "jev" | "none";
@@ -22,15 +21,10 @@ export interface AppConfig {
   };
 }
 
-function normalizeBase(url: string): string {
-  return url.replace(/\/+$/, "");
-}
-
 export function getConfig(): AppConfig {
   const rawLlm = (process.env.LLM_PROVIDER ?? "mock").trim().toLowerCase();
   const provider = rawLlm === "jev" ? "jev" : rawLlm === "none" ? "none" : "mock";
   return {
-    fhirBaseUrl: normalizeBase(process.env.FHIR_BASE_URL ?? "https://hapi.fhir.org/baseR4"),
     fhirTimeoutMs: Number(process.env.FHIR_TIMEOUT_MS ?? 20000),
     llm: {
       provider,
