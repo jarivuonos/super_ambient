@@ -43,6 +43,8 @@ describe("skeemavalidointi ja korjausyritys", () => {
       ["Näytä viimeisin kuvantamislausunto", "imaging-report"],
       ["Mitä keskeisiä ongelmia ja viimeaikaisia muutoksia potilaan tiedoissa näkyy?", "overview"],
       ["Mikä potilaan ongelma on?", "overview"],
+      ["Millaisia verikokeita on otettu?", "laboratory"],
+      ["Näytä viimeisin verikoe", "laboratory"],
       ["Kerro säästä", "unknown"],
     ];
     for (const [q, intent] of qs) {

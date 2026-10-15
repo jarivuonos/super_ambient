@@ -10,7 +10,7 @@ const RULES: { re: RegExp; intent: KnownIntent }[] = [
   { re: /lääk/iu, intent: "medications" },
   { re: /allerg|yliherk/iu, intent: "allergies" },
   { re: /kuvanta|röntgen|\brtg\b|lausun|\bct\b|\btt\b|\bmri\b|magneet|ultraä/iu, intent: "imaging-report" },
-  { re: /labor|\bhb\b|hemoglob|krea|kalium|\bcrp\b|kolester|\bldl\b|verikoe|näyte/iu, intent: "laboratory" },
+  { re: /labor|\bhb\b|hemoglob|krea|kalium|\bcrp\b|kolester|\bldl\b|verikok|verikoe|näyte/iu, intent: "laboratory" },
   { re: /diagnoo|sairau/iu, intent: "conditions" },
   { re: /vitaal|syke|pulssi|lämpö|mittau/iu, intent: "vital-signs" },
   { re: /asiakirj|merkin|kertomus|teksti/iu, intent: "documents" },
