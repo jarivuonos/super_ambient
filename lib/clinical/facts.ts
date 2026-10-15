@@ -28,6 +28,23 @@ export interface Fact {
 const hasCode = (cc: CodeableConcept | undefined, codes: string[], system = LOINC) =>
   !!cc?.coding?.some((c) => c.system === system && c.code && codes.includes(c.code));
 
+/**
+ * Lääkkeen nimi: medicationCodeableConcept, muuten medicationReference.display, muuten sisältyvä
+ * (contained) Medication-resurssi. Epic antaa lääkkeen viitteenä, joten pelkkä CodeableConcept ei riitä.
+ */
+export function medicationName(r: Resource): string {
+  const direct = r.medicationCodeableConcept as CodeableConcept | undefined;
+  if (direct) return conceptText(direct);
+  const ref = r.medicationReference as { reference?: string; display?: string } | undefined;
+  if (ref?.display?.trim()) return ref.display.trim();
+  if (ref?.reference?.startsWith("#")) {
+    const contained = (r.contained as Resource[] | undefined)?.find((c) => c.resourceType === "Medication" && c.id === ref.reference!.slice(1));
+    const code = contained?.code as CodeableConcept | undefined;
+    if (code) return conceptText(code);
+  }
+  return conceptText(undefined);
+}
+
 export function conceptText(cc: CodeableConcept | undefined): string {
   return cc?.text || cc?.coding?.find((c) => c.display)?.display || cc?.coding?.[0]?.code || "(nimeämätön)";
 }
@@ -218,12 +235,12 @@ export function medicationFacts(resources: Resource[], now = new Date()): Fact[]
       out.push({
         kind: "medication-statement",
         label: "Lääkityskirjaus (MedicationStatement)",
-        text: `${conceptText(r.medicationCodeableConcept as CodeableConcept)} – ${((r.dosage as { text?: string }[]) ?? [])[0]?.text ?? "annostus ei tiedossa"}`,
+        text: `${medicationName(r)} – ${((r.dosage as { text?: string }[]) ?? [])[0]?.text ?? "annostus ei tiedossa"}`,
         date,
         dateLabel: "voimassa alkaen",
         numbers: [],
         flags: [`tila: ${r.status ?? "ei tiedossa"}`, ...(r.dateAsserted ? [`viimeksi todettu ${formatDate(r.dateAsserted as string)}`] : [])],
-        source: { resourceType: "MedicationStatement", id: r.id, fields: ["medicationCodeableConcept", "status", "effectivePeriod"] },
+        source: { resourceType: "MedicationStatement", id: r.id, fields: ["medicationCodeableConcept", "medicationReference", "status", "effectivePeriod"] },
       });
     } else if (r.resourceType === "MedicationRequest") {
       const authored = (r.authoredOn as string) ?? null;
@@ -231,7 +248,7 @@ export function medicationFacts(resources: Resource[], now = new Date()): Fact[]
       out.push({
         kind: "medication-request",
         label: "Lääkemääräys (MedicationRequest)",
-        text: conceptText(r.medicationCodeableConcept as CodeableConcept),
+        text: medicationName(r),
         date: authored,
         dateLabel: "määrätty",
         numbers: [],
@@ -239,7 +256,7 @@ export function medicationFacts(resources: Resource[], now = new Date()): Fact[]
           `tila: ${r.status ?? "ei tiedossa"}`,
           ...(old ? ["Määräys on yli vuoden vanha; se ei kerro nykyisestä lääkityksestä."] : []),
         ],
-        source: { resourceType: "MedicationRequest", id: r.id, fields: ["medicationCodeableConcept", "status", "authoredOn"] },
+        source: { resourceType: "MedicationRequest", id: r.id, fields: ["medicationCodeableConcept", "medicationReference", "status", "authoredOn"] },
       });
     }
   }

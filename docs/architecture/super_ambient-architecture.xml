@@ -3,7 +3,7 @@
   <name xml:lang="en">super_ambient: preliminary architecture</name>
   <documentation xml:lang="en">Preliminary ArchiMate model of the super_ambient demo (synthetic-data FHIR patient workspace with ambient documentation and Jev classification). Generated from the code; not reviewed. See the accompanying PDF for the narrative.</documentation>
   <properties>
-    <property propertyDefinitionRef="id-pd-gen"><value xml:lang="en">commit 21260f2 plus uncommitted changes, generated 2026-10-15</value></property>
+    <property propertyDefinitionRef="id-pd-gen"><value xml:lang="en">commit c2e0565 plus uncommitted changes, generated 2026-10-15</value></property>
     <property propertyDefinitionRef="id-pd-review"><value xml:lang="en">preliminary, not reviewed</value></property>
   </properties>
   <elements>
@@ -701,7 +701,7 @@
     </element>
     <element identifier="id-wp-epic" xsi:type="WorkPackage">
       <name xml:lang="en">Second FHIR source: Epic sandbox (read-only, SMART login)</name>
-      <documentation xml:lang="en">Source registry and selector, PKCE login with cookie session, Epic search shapes and test-patient list. Verified by the owner for login, patient search, encounters and a blood-pressure question.</documentation>
+      <documentation xml:lang="en">Source registry and selector, PKCE login with cookie session, Epic search shapes and test-patient list. Verified by the owner for login, patient search, encounters and questions on blood pressure, labs, allergies, medications and conditions (medication names are read from the reference display).</documentation>
       <properties>
         <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
         <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/fhir/sources.ts</value></property>
@@ -709,8 +709,8 @@
       </properties>
     </element>
     <element identifier="id-wp-epic-q" xsi:type="WorkPackage">
-      <name xml:lang="en">Verify more question types against Epic</name>
-      <documentation xml:lang="en">Labs, allergies, medications and conditions; Epic's _sort support is unchecked.</documentation>
+      <name xml:lang="en">Verify the remaining question types against Epic</name>
+      <documentation xml:lang="en">Imaging reports, documents and the overview question are untried; whether Epic honours _sort is unconfirmed (it accepts the parameter).</documentation>
       <properties>
         <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">planned</value></property>
       </properties>
