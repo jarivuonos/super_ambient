@@ -213,5 +213,5 @@ Käyttöliittymä ohittaa vanhentuneet vastaukset sukupolvilaskurilla ja AbortCo
 - Hakuehdot tarkistetaan viimeisintä onnistunutta CapabilityStatementia vasten; ennen ensimmäistä yhteystarkistusta tarkistus ohitetaan.
 - Kysy-näkymän yhteenveto käyttää palvelimen kelloa ”viimeiset 90 vrk” -rajaukseen.
 - Epic-lähteen hakuja on kokeiltu vain osittain: verenpainekysely ja kontaktihaku toimivat; laboratorio-, allergia-, lääkitys- ja diagnoosikysymykset sekä Epicin `_sort`-tuki ovat tarkistamatta. Kirjautumista Epicin sandboxia vasten ei voi testata automaattisesti (se vaatii käyttäjän selaimen), vain jäljitelmäpalvelimella.
-- Epic-pääsytunniste vanhenee noin tunnissa, eikä uusintakirjautumista tehdä automaattisesti. Vercel-osoitteen rekisteröinti Epicille ja sen toimivuus on tarkistamatta.
+- Epic-pääsytunniste vanhenee noin tunnissa, eikä uusintakirjautumista tehdä automaattisesti. Kirjautuminen toimii myös Vercelissä (omistaja vahvisti), mutta jokainen uusi osoite (esikatselujulkaisu, oma verkkotunnus, Azure) on rekisteröitävä Epicille erikseen, ja Epic vertaa osoitetta kirjaimellisesti (https, täsmällinen polku). Uuden osoitteen voimaantulo kesti noin kymmenen minuuttia.
 - Julkisen HAPIn tallennus on tarkoitettu vain demoon, ja aineisto voi kadota palvelimen nollauksessa. Luo silloin harjoitusaineisto uudelleen.

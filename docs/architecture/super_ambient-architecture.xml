@@ -3,7 +3,7 @@
   <name xml:lang="en">super_ambient: preliminary architecture</name>
   <documentation xml:lang="en">Preliminary ArchiMate model of the super_ambient demo (synthetic-data FHIR patient workspace with ambient documentation and Jev classification). Generated from the code; not reviewed. See the accompanying PDF for the narrative.</documentation>
   <properties>
-    <property propertyDefinitionRef="id-pd-gen"><value xml:lang="en">commit cae3d1b plus uncommitted changes, generated 2026-10-15</value></property>
+    <property propertyDefinitionRef="id-pd-gen"><value xml:lang="en">commit 21260f2 plus uncommitted changes, generated 2026-10-15</value></property>
     <property propertyDefinitionRef="id-pd-review"><value xml:lang="en">preliminary, not reviewed</value></property>
   </properties>
   <elements>
@@ -717,9 +717,9 @@
     </element>
     <element identifier="id-wp-epic-cloud" xsi:type="WorkPackage">
       <name xml:lang="en">Epic login from the Vercel deployment</name>
-      <documentation xml:lang="en">Register the Vercel callback URI at Epic, set the client id in Vercel, deploy the new code.</documentation>
+      <documentation xml:lang="en">Callback URI registered at Epic, client id set in Vercel, code deployed. The owner confirmed that login works from the deployed app. Epic took about ten minutes to accept the new URI, and it compares the URI literally (https, exact path).</documentation>
       <properties>
-        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">planned</value></property>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
       </properties>
     </element>
     <element identifier="id-wp-heldout" xsi:type="WorkPackage">
@@ -1173,7 +1173,7 @@
         <node identifier="id-v-roadmap-pl-azure" elementRef="id-pl-azure" xsi:type="Element" x="566" y="176" w="156" h="62"/>
         <node identifier="id-v-roadmap-wp-epic" elementRef="id-wp-epic" xsi:type="Element" x="20" y="176" w="156" h="62"/>
         <node identifier="id-v-roadmap-wp-epic-q" elementRef="id-wp-epic-q" xsi:type="Element" x="20" y="480" w="156" h="62"/>
-        <node identifier="id-v-roadmap-wp-epic-cloud" elementRef="id-wp-epic-cloud" xsi:type="Element" x="202" y="480" w="156" h="62"/>
+        <node identifier="id-v-roadmap-wp-epic-cloud" elementRef="id-wp-epic-cloud" xsi:type="Element" x="748" y="20" w="156" h="62"/>
         <node identifier="id-v-roadmap-wp-heldout" elementRef="id-wp-heldout" xsi:type="Element" x="20" y="333" w="156" h="62"/>
         <node identifier="id-v-roadmap-wp-qa" elementRef="id-wp-qa" xsi:type="Element" x="202" y="333" w="156" h="62"/>
         <node identifier="id-v-roadmap-wp-progress" elementRef="id-wp-progress" xsi:type="Element" x="384" y="333" w="156" h="62"/>

@@ -159,7 +159,7 @@ export const ELEMENTS: El[] = [
   e("wp-guard", "WorkPackage", "Agent guardrails (AGENTS.md, permissions, hook)", "implemented", "Project instructions, permission rules and an .env hook.", ["AGENTS.md", ".claude/settings.json", ".claude/hooks/block-env-reads.sh"]),
   e("wp-epic", "WorkPackage", "Second FHIR source: Epic sandbox (read-only, SMART login)", "implemented", "Source registry and selector, PKCE login with cookie session, Epic search shapes and test-patient list. Verified by the owner for login, patient search, encounters and a blood-pressure question.", ["lib/fhir/sources.ts", "lib/auth"]),
   e("wp-epic-q", "WorkPackage", "Verify more question types against Epic", "planned", "Labs, allergies, medications and conditions; Epic's _sort support is unchecked."),
-  e("wp-epic-cloud", "WorkPackage", "Epic login from the Vercel deployment", "planned", "Register the Vercel callback URI at Epic, set the client id in Vercel, deploy the new code."),
+  e("wp-epic-cloud", "WorkPackage", "Epic login from the Vercel deployment", "implemented", "Callback URI registered at Epic, client id set in Vercel, code deployed. The owner confirmed that login works from the deployed app. Epic took about ten minutes to accept the new URI, and it compares the URI literally (https, exact path)."),
   e("wp-heldout", "WorkPackage", "Held-out evaluation with doctor-written transcripts", "planned", "The real accuracy check; the current sets are in-sample."),
   e("wp-qa", "WorkPackage", "Question-and-answer pair handling", "planned", "Short replies such as 'Ei.' need the preceding question."),
   e("wp-progress", "WorkPackage", "Progress indication for structuring", "planned", "About 300 ms per sentence at concurrency 1."),
@@ -387,7 +387,7 @@ export const VIEWS: ViewSpec[] = [
     nodes: [
       { id: "wp-core", col: 0, row: 0 }, { id: "wp-jev-q", col: 1, row: 0 }, { id: "wp-jev-s", col: 2, row: 0 }, { id: "wp-guard", col: 3, row: 0 },
       { id: "pl-demo", col: 1.2, row: 1.7 }, { id: "pl-azure", col: 3, row: 1.7 },
-      { id: "wp-epic", col: 0, row: 1.7 }, { id: "wp-epic-q", col: 0, row: 5 }, { id: "wp-epic-cloud", col: 1, row: 5 },
+      { id: "wp-epic", col: 0, row: 1.7 }, { id: "wp-epic-q", col: 0, row: 5 }, { id: "wp-epic-cloud", col: 4, row: 0 },
       { id: "wp-heldout", col: 0, row: 3.4 }, { id: "wp-qa", col: 1, row: 3.4 }, { id: "wp-progress", col: 2, row: 3.4 }, { id: "wp-azure", col: 3, row: 3.4 }, { id: "wp-icd", col: 4, row: 3.4 },
     ],
     edges: [

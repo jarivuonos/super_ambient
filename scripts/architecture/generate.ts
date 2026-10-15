@@ -570,7 +570,7 @@ function buildHtml(p: Provenance, svgs: Map<string, string>, xsdResult: string):
     ["R10", "No audit trail or structured logging; one console.error only.", "Required before any real use."],
     ["R11", "Per-instance caches on serverless hosts give inconsistent status and skipped parameter checks until the first capability check. Epic adapters are built per request and never run the parameter check.", "Check capabilities on first use per instance or cache externally."],
     ["R12", "Epic reads are only partly verified: login, patient search, encounters and a blood-pressure question work; labs, allergies, medications, conditions and _sort support are unchecked. Epic login cannot be tested automatically.", "Try the remaining question types by hand; add Epic-specific search variants where Epic rejects ours."],
-    ["R13", "Epic access tokens last about an hour and are not refreshed; the Vercel callback URI is not yet accepted by Epic and the deployed build does not contain the Epic code.", "Register the URI, set the client id in Vercel and deploy; consider a refresh token only if needed."],
+    ["R13", "Epic access tokens last about an hour and are not refreshed. Every new hostname (preview deployments, a custom domain, the Azure tenant) needs its callback URI registered at Epic first, and Epic compares it literally.", "Register each origin before use; consider a refresh token only if the one-hour limit gets in the way."],
     ["R14", "Epic's patient search finds by name only together with a birth date; the exact accepted combinations are not documented in what was read.", "Test more combinations; prefer identifier lookup or launch context for real use."],
   ];
 
