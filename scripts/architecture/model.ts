@@ -157,8 +157,8 @@ export const ELEMENTS: El[] = [
   e("wp-jev-q", "WorkPackage", "Jev question interpretation", "implemented", "Classifier-based interpretation with thresholds and an evaluation set."),
   e("wp-jev-s", "WorkPackage", "Jev transcript structuring with clause splitting", "opt-in", "Opt-in hybrid structuring; evaluation on synthetic gold set."),
   e("wp-guard", "WorkPackage", "Agent guardrails (AGENTS.md, permissions, hook)", "implemented", "Project instructions, permission rules and an .env hook.", ["AGENTS.md", ".claude/settings.json", ".claude/hooks/block-env-reads.sh"]),
-  e("wp-epic", "WorkPackage", "Second FHIR source: Epic sandbox (read-only, SMART login)", "implemented", "Source registry and selector, PKCE login with cookie session, Epic search shapes and test-patient list. Verified by the owner for login, patient search, encounters and questions on blood pressure, labs, allergies, medications, conditions, imaging reports and documents (medication names are read from the reference display; an imaging document is recognised from its type).", ["lib/fhir/sources.ts", "lib/auth"]),
-  e("wp-epic-q", "WorkPackage", "Verify the remaining question types against Epic", "planned", "Only the overview question is untried; whether Epic honours _sort is unconfirmed (it accepts the parameter)."),
+  e("wp-epic", "WorkPackage", "Second FHIR source: Epic sandbox (read-only, SMART login)", "implemented", "Source registry and selector, PKCE login with cookie session, Epic search shapes and test-patient list. Verified by the owner for login, patient search, encounters and questions on blood pressure, labs, allergies, medications, conditions, imaging reports, documents and the overview (medication names are read from the reference display; an imaging document is recognised from its type; Epic needs a category on Observation searches, so the overview splits observations into vitals and labs).", ["lib/fhir/sources.ts", "lib/auth"]),
+  e("wp-epic-q", "WorkPackage", "Verify all question types against Epic", "implemented", "Every question type has been tried by hand. Findings: Epic ignores _sort, requires a category or code on Observation searches and offers no MedicationStatement in R4 (403); the app reports the 403 on purpose and explains 401 and 403 clearly."),
   e("wp-epic-cloud", "WorkPackage", "Epic login from the Vercel deployment", "implemented", "Callback URI registered at Epic, client id set in Vercel, code deployed. The owner confirmed that login works from the deployed app. Epic took about ten minutes to accept the new URI, and it compares the URI literally (https, exact path)."),
   e("wp-heldout", "WorkPackage", "Held-out evaluation with doctor-written transcripts", "planned", "The real accuracy check; the current sets are in-sample."),
   e("wp-qa", "WorkPackage", "Question-and-answer pair handling", "planned", "Short replies such as 'Ei.' need the preceding question."),
@@ -387,7 +387,7 @@ export const VIEWS: ViewSpec[] = [
     nodes: [
       { id: "wp-core", col: 0, row: 0 }, { id: "wp-jev-q", col: 1, row: 0 }, { id: "wp-jev-s", col: 2, row: 0 }, { id: "wp-guard", col: 3, row: 0 },
       { id: "pl-demo", col: 1.2, row: 1.7 }, { id: "pl-azure", col: 3, row: 1.7 },
-      { id: "wp-epic", col: 0, row: 1.7 }, { id: "wp-epic-q", col: 0, row: 5 }, { id: "wp-epic-cloud", col: 4, row: 0 },
+      { id: "wp-epic", col: 0, row: 1.7 }, { id: "wp-epic-q", col: 4, row: 1.7 }, { id: "wp-epic-cloud", col: 4, row: 0 },
       { id: "wp-heldout", col: 0, row: 3.4 }, { id: "wp-qa", col: 1, row: 3.4 }, { id: "wp-progress", col: 2, row: 3.4 }, { id: "wp-azure", col: 3, row: 3.4 }, { id: "wp-icd", col: 4, row: 3.4 },
     ],
     edges: [

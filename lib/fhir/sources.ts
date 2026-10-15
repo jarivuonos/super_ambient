@@ -23,6 +23,8 @@ export interface EhrSource {
   demoFilter: boolean;
   /** Nimihaun muoto: "name" (yksi parametri) tai "family-given" (sukunimi ja etunimi erikseen, esim. Epic). */
   patientNameSearch: "name" | "family-given";
+  /** Observation-haku vaatii kategorian tai koodin (esim. Epic): yleishaku "kaikki havainnot" korvataan vitaali- ja laboratoriohauilla. */
+  observationsNeedCategory?: boolean;
   /** Lähteen julkisesti dokumentoidut synteettiset testipotilaat; haetaan tunnisteella, tietoja ei kopioida tähän. */
   testPatients?: TestPatient[];
 }
@@ -59,6 +61,7 @@ export const SOURCES: readonly EhrSource[] = [
     writable: false,
     demoFilter: false,
     patientNameSearch: "family-given",
+    observationsNeedCategory: true,
     // Epicin dokumentaation (fhir.epic.com, Sandbox Test Data) testipotilaat; MRN-järjestelmä on sandboxin oma.
     testPatients: [
       ["Camila Lopez", "203713"],

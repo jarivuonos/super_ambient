@@ -22,6 +22,7 @@ function buildAdapter(source: EhrSource, accessToken?: string): HapiR4Adapter {
     accessToken,
     name: source.id === DEFAULT_SOURCE_ID ? undefined : source.label,
     patientNameSearch: source.patientNameSearch,
+    observationsNeedCategory: source.observationsNeedCategory,
   });
 }
 

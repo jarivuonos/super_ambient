@@ -95,10 +95,12 @@ export class HapiR4Adapter implements EhrAdapter {
   private capabilities?: CapabilitySummary;
 
   private patientNameSearch: PatientNameSearch;
+  readonly observationsNeedCategory: boolean;
 
-  constructor(opts: FhirHttpOptions & { name?: string; patientNameSearch?: PatientNameSearch }) {
+  constructor(opts: FhirHttpOptions & { name?: string; patientNameSearch?: PatientNameSearch; observationsNeedCategory?: boolean }) {
     this.name = opts.name ?? "HAPI FHIR R4";
     this.patientNameSearch = opts.patientNameSearch ?? "name";
+    this.observationsNeedCategory = opts.observationsNeedCategory ?? false;
     this.http = new FhirHttp(opts);
     this.baseUrl = this.http.baseUrl;
   }

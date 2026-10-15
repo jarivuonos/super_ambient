@@ -17,7 +17,8 @@ import { LanguageServiceUnavailable, parseWithRepair, type CapabilitySource, typ
 import { mockAnswer } from "./mock-language";
 import { InfoNeedSchema, type InfoNeed, type Intent } from "./schemas";
 
-export const MAX_SEARCHES = 5;
+/** Enintään kuusi hakua: yhteenveto tarvitsee kuusi, kun lähde vaatii Observation-haulle kategorian (havainnot jaetaan kahtia). */
+export const MAX_SEARCHES = 6;
 export const MAX_TOTAL_RESOURCES = 150;
 
 const INTENT_BUILDERS: Record<Intent, BuilderName[]> = {
@@ -47,7 +48,7 @@ const BUILDER_TYPE: Record<BuilderName, string> = {
 };
 
 /** Muodostaa hakusuunnitelman. Potilas ja kontakti tulevat aina sovelluksen tilasta, ei mallilta. */
-export function planSearches(need: InfoNeed, ctx: { patientId: string; encounterId?: string }) {
+export function planSearches(need: InfoNeed, ctx: { patientId: string; encounterId?: string; observationsNeedCategory?: boolean }) {
   const scope: Scope = {
     patientId: ctx.patientId,
     encounterId: ctx.encounterId,
@@ -60,6 +61,10 @@ export function planSearches(need: InfoNeed, ctx: { patientId: string; encounter
     const allowed = new Set<string>(need.resourceTypes);
     const narrowed = names.filter((n) => allowed.has(BUILDER_TYPE[n]));
     if (narrowed.length) names = narrowed;
+  }
+  if (ctx.observationsNeedCategory && names.includes("observations")) {
+    // Lähde ei hyväksy kategoriatonta Observation-hakua: korvataan se vitaali- ja laboratoriohauilla (ilman kaksoiskappaleita).
+    names = [...new Set(names.flatMap((n): BuilderName[] => (n === "observations" ? ["vitalSigns", "laboratory"] : [n])))];
   }
   return names.slice(0, MAX_SEARCHES).map((n) => ({ name: n, spec: builders[n](scope) }));
 }
@@ -188,7 +193,7 @@ export async function runAsk(params: {
     return { ...base, state: "clarify", answer: need.clarificationQuestion ?? "Tarkenna kysymystä." };
   }
 
-  const planned = planSearches(need, { patientId, encounterId });
+  const planned = planSearches(need, { patientId, encounterId, observationsNeedCategory: ehr.observationsNeedCategory });
   let totalResources = 0;
   const facts: Fact[] = [];
   for (const { name, spec } of planned) {
@@ -212,7 +217,13 @@ export async function runAsk(params: {
       rejectedOtherPatient: res.rejectedOtherPatient,
       error: res.error ? { kind: res.error.kind, message: res.error.message, status: res.error.status } : undefined,
     });
-    if (res.state === "error") base.missing.push(`${spec.purpose}: haku epäonnistui (${res.error?.message ?? "tuntematon virhe"}).`);
+    if (res.state === "error" && (res.error?.status === 401 || res.error?.status === 403)) {
+      base.missing.push(
+        res.error.status === 401
+          ? `${spec.purpose}: palvelin hylkäsi tunnisteen (HTTP 401); kirjaudu uudelleen.`
+          : `${spec.purpose}: palvelin ei salli tätä hakua tälle sovellukselle (HTTP 403); sovelluksen rekisteröinti ei välttämättä kata tätä tietotyyppiä.`,
+      );
+    } else if (res.state === "error") base.missing.push(`${spec.purpose}: haku epäonnistui (${res.error?.message ?? "tuntematon virhe"}).`);
     else if (res.state === "empty") base.missing.push(`${spec.purpose}: tästä hausta ei löytynyt tietoa.`);
     else if (res.state === "partial") base.missing.push(`${spec.purpose}: haku jäi osittaiseksi; kaikkia tietoja ei haettu (raja tai keskeytynyt sivutus).`);
     facts.push(...factsFor(need, name, res.resources));

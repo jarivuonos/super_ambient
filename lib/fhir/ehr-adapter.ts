@@ -66,6 +66,8 @@ export interface ValidationResult {
 export interface EhrAdapter {
   readonly name: string;
   readonly baseUrl: string;
+  /** true: Observation-haku vaatii kategorian tai koodin; yleishaku korvataan vitaali- ja laboratoriohauilla. */
+  readonly observationsNeedCategory?: boolean;
   checkCapabilities(signal?: AbortSignal): Promise<CapabilityCheck>;
   searchPatients(query: string, demoOnly: boolean, signal?: AbortSignal): Promise<SearchResult<Patient>>;
   searchEncounters(patientId: string, signal?: AbortSignal): Promise<SearchResult<Encounter>>;
