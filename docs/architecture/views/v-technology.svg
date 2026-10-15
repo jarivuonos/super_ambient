@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1004 886" width="1004" height="886" font-family="'Noto Sans','DejaVu Sans',Arial,sans-serif" role="img" aria-label="6 Technology and deployment">
+<title>6 Technology and deployment</title>
+<defs>
+  <marker id="open" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#333" stroke-width="1.3"/></marker>
+  <marker id="filled" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9 Z" fill="#333" stroke="#333"/></marker>
+  <marker id="hollow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M1 1 L11 6 L1 11 Z" fill="#fff" stroke="#333" stroke-width="1.2"/></marker>
+  <marker id="dot" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7"><circle cx="5" cy="5" r="3.5" fill="#333"/></marker>
+  <marker id="diamond" viewBox="0 0 14 10" refX="1" refY="5" markerWidth="13" markerHeight="9" orient="auto-start-reverse"><path d="M1 5 L7 1 L13 5 L7 9 Z" fill="#333" stroke="#333"/></marker>
+</defs>
+<rect width="100%" height="100%" fill="#fff"/>
+<rect x="20" y="20" width="184" height="278" rx="8" fill="#c9e7b7" fill-opacity="0.7" stroke="#333" stroke-width="1.4"/>
+<text x="30" y="37" font-size="11.5" font-weight="700" fill="#111">Clinician's browser</text>
+<text x="30" y="49" font-size="8" fill="#444">«Node»</text>
+<rect x="147" y="664" width="184" height="202" rx="8" fill="#c9e7b7" fill-opacity="0.7" stroke="#555" stroke-width="1.4"/>
+<text x="157" y="681" font-size="11.5" font-weight="700" fill="#111">Epic on FHIR sandbox</text>
+<text x="157" y="693" font-size="8" fill="#444">«Node» · external</text>
+<rect x="275" y="20" width="184" height="278" rx="8" fill="#c9e7b7" fill-opacity="0.7" stroke="#333" stroke-width="1.4"/>
+<text x="285" y="37" font-size="11.5" font-weight="700" fill="#111">Vercel hosting (current)</text>
+<text x="285" y="49" font-size="8" fill="#444">«Node»</text>
+<rect x="602" y="20" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="0.55" stroke="#333" stroke-width="1" stroke-dasharray="5 3"/>
+<text x="680" y="40.5" font-size="11" text-anchor="middle" fill="#111">Employer Azure tenant</text>
+<text x="680" y="53.5" font-size="11" text-anchor="middle" fill="#111">(planned)</text>
+<text x="680" y="76" font-size="7.5" text-anchor="middle" fill="#555">«Node» · planned</text>
+<rect x="147" y="324" width="837" height="40" rx="6" fill="#c9e7b7" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="565.5" y="344" font-size="11" text-anchor="middle" fill="#111">Internet (HTTPS)</text>
+<rect x="20" y="443" width="184" height="126" rx="8" fill="#c9e7b7" fill-opacity="0.7" stroke="#555" stroke-width="1.4"/>
+<text x="30" y="460" font-size="11.5" font-weight="700" fill="#111">HAPI FHIR public test</text>
+<text x="30" y="474" font-size="11.5" font-weight="700" fill="#111">server</text>
+<text x="30" y="486" font-size="8" fill="#444">«Node» · external</text>
+<rect x="275" y="443" width="184" height="126" rx="8" fill="#c9e7b7" fill-opacity="0.7" stroke="#555" stroke-width="1.4"/>
+<text x="285" y="460" font-size="11.5" font-weight="700" fill="#111">Typesafe AI cloud (Jev)</text>
+<text x="285" y="472" font-size="8" fill="#444">«Node» · external</text>
+<rect x="530" y="443" width="184" height="126" rx="8" fill="#c9e7b7" fill-opacity="0.55" stroke="#333" stroke-width="1.4" stroke-dasharray="5 3"/>
+<text x="540" y="460" font-size="11.5" font-weight="700" fill="#111">ICD-API service (local,</text>
+<text x="540" y="474" font-size="11.5" font-weight="700" fill="#111">systemd)</text>
+<text x="540" y="486" font-size="8" fill="#444">«Node» · parked</text>
+<rect x="784" y="443" width="184" height="202" rx="8" fill="#c9e7b7" fill-opacity="0.7" stroke="#333" stroke-width="1.4"/>
+<text x="794" y="460" font-size="11.5" font-weight="700" fill="#111">Developer workstation</text>
+<text x="794" y="474" font-size="11.5" font-weight="700" fill="#111">(Linux)</text>
+<text x="794" y="486" font-size="8" fill="#444">«Node»</text>
+<rect x="34" y="70" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="112" y="90.5" font-size="11" text-anchor="middle" fill="#111">Browser audio capture</text>
+<text x="112" y="103.5" font-size="11" text-anchor="middle" fill="#111">(MediaRecorder)</text>
+<text x="112" y="126" font-size="7.5" text-anchor="middle" fill="#555">«System Software»</text>
+<rect x="34" y="146" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="112" y="173" font-size="11" text-anchor="middle" fill="#111">Client JavaScript bundle</text>
+<text x="112" y="202" font-size="7.5" text-anchor="middle" fill="#555">«Artifact»</text>
+<rect x="34" y="222" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="112" y="242.5" font-size="11" text-anchor="middle" fill="#111">Access-token cookie</text>
+<text x="112" y="255.5" font-size="11" text-anchor="middle" fill="#111">(httpOnly)</text>
+<text x="112" y="278" font-size="7.5" text-anchor="middle" fill="#555">«Artifact»</text>
+<rect x="161" y="714" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="1" stroke="#555" stroke-width="1"/>
+<text x="239" y="741" font-size="11" text-anchor="middle" fill="#111">Epic FHIR R4 API</text>
+<text x="239" y="770" font-size="7.5" text-anchor="middle" fill="#555">«Technology Service» · external</text>
+<rect x="161" y="790" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="1" stroke="#555" stroke-width="1"/>
+<text x="239" y="810.5" font-size="11" text-anchor="middle" fill="#111">Epic SMART / OAuth 2.0</text>
+<text x="239" y="823.5" font-size="11" text-anchor="middle" fill="#111">service</text>
+<text x="239" y="846" font-size="7.5" text-anchor="middle" fill="#555">«Technology Service» · external</text>
+<rect x="289" y="70" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="367" y="97" font-size="11" text-anchor="middle" fill="#111">Next.js server runtime</text>
+<text x="367" y="126" font-size="7.5" text-anchor="middle" fill="#555">«System Software»</text>
+<rect x="289" y="146" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="367" y="173" font-size="11" text-anchor="middle" fill="#111">Next.js server build</text>
+<text x="367" y="202" font-size="7.5" text-anchor="middle" fill="#555">«Artifact»</text>
+<rect x="289" y="222" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="367" y="242.5" font-size="11" text-anchor="middle" fill="#111">Server environment</text>
+<text x="367" y="255.5" font-size="11" text-anchor="middle" fill="#111">configuration</text>
+<text x="367" y="278" font-size="7.5" text-anchor="middle" fill="#555">«Artifact»</text>
+<rect x="34" y="493" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="1" stroke="#555" stroke-width="1"/>
+<text x="112" y="520" font-size="11" text-anchor="middle" fill="#111">FHIR R4 REST API</text>
+<text x="112" y="549" font-size="7.5" text-anchor="middle" fill="#555">«Technology Service» · external</text>
+<rect x="289" y="493" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="1" stroke="#555" stroke-width="1"/>
+<text x="367" y="513.5" font-size="11" text-anchor="middle" fill="#111">System One</text>
+<text x="367" y="526.5" font-size="11" text-anchor="middle" fill="#111">classification API</text>
+<text x="367" y="549" font-size="7.5" text-anchor="middle" fill="#555">«Technology Service» · external</text>
+<rect x="544" y="493" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="0.55" stroke="#333" stroke-width="1" stroke-dasharray="5 3"/>
+<text x="622" y="520" font-size="11" text-anchor="middle" fill="#111">ICD-11 search API</text>
+<text x="622" y="549" font-size="7.5" text-anchor="middle" fill="#555">«Technology Service» · parked</text>
+<rect x="798" y="493" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="876" y="513.5" font-size="11" text-anchor="middle" fill="#111">Bun runtime and package</text>
+<text x="876" y="526.5" font-size="11" text-anchor="middle" fill="#111">manager</text>
+<text x="876" y="549" font-size="7.5" text-anchor="middle" fill="#555">«System Software»</text>
+<rect x="798" y="569" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="876" y="596" font-size="11" text-anchor="middle" fill="#111">Next.js 16 and React 19</text>
+<text x="876" y="625" font-size="7.5" text-anchor="middle" fill="#555">«System Software»</text>
+<line x1="155.0" y1="324.0" x2="155.0" y2="298.0" stroke="#333" stroke-width="1.1" />
+<line x1="367.0" y1="324.0" x2="367.0" y2="298.0" stroke="#333" stroke-width="1.1" />
+<line x1="680.0" y1="324.0" x2="680.0" y2="82.0" stroke="#333" stroke-width="1.1" />
+<line x1="155.0" y1="364.0" x2="155.0" y2="443.0" stroke="#333" stroke-width="1.1" />
+<line x1="367.0" y1="364.0" x2="367.0" y2="443.0" stroke="#333" stroke-width="1.1" />
+<line x1="239.0" y1="364.0" x2="239.0" y2="664.0" stroke="#333" stroke-width="1.1" />
+<line x1="600.0" y1="83.2" x2="447.0" y2="144.8" stroke="#333" stroke-width="1.1" marker-start="url(#dot)" marker-end="url(#filled)"/>
+</svg>

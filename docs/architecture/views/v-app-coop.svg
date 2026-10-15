@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1106 654" width="1106" height="654" font-family="'Noto Sans','DejaVu Sans',Arial,sans-serif" role="img" aria-label="4 Application cooperation">
+<title>4 Application cooperation</title>
+<defs>
+  <marker id="open" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#333" stroke-width="1.3"/></marker>
+  <marker id="filled" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9 Z" fill="#333" stroke="#333"/></marker>
+  <marker id="hollow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M1 1 L11 6 L1 11 Z" fill="#fff" stroke="#333" stroke-width="1.2"/></marker>
+  <marker id="dot" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7"><circle cx="5" cy="5" r="3.5" fill="#333"/></marker>
+  <marker id="diamond" viewBox="0 0 14 10" refX="1" refY="5" markerWidth="13" markerHeight="9" orient="auto-start-reverse"><path d="M1 5 L7 1 L13 5 L7 9 Z" fill="#333" stroke="#333"/></marker>
+</defs>
+<rect width="100%" height="100%" fill="#fff"/>
+<rect x="20" y="250" width="156" height="62" rx="6" fill="#b5ffff" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="98" y="277" font-size="11" text-anchor="middle" fill="#111">Web UI</text>
+<text x="98" y="306" font-size="7.5" text-anchor="middle" fill="#555">«Application Component»</text>
+<rect x="202" y="250" width="156" height="62" rx="6" fill="#b5ffff" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="280" y="270.5" font-size="11" text-anchor="middle" fill="#111">API layer (route</text>
+<text x="280" y="283.5" font-size="11" text-anchor="middle" fill="#111">handlers)</text>
+<text x="280" y="306" font-size="7.5" text-anchor="middle" fill="#555">«Application Component»</text>
+<rect x="384" y="66" width="156" height="62" rx="6" fill="#b5ffff" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="462" y="93" font-size="11" text-anchor="middle" fill="#111">Question answering</text>
+<text x="462" y="122" font-size="7.5" text-anchor="middle" fill="#555">«Application Component»</text>
+<rect x="384" y="204" width="156" height="62" rx="6" fill="#b5ffff" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="462" y="231" font-size="11" text-anchor="middle" fill="#111">Transcript structuring</text>
+<text x="462" y="260" font-size="7.5" text-anchor="middle" fill="#555">«Application Component» · opt-in</text>
+<rect x="384" y="342" width="156" height="62" rx="6" fill="#b5ffff" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="462" y="369" font-size="11" text-anchor="middle" fill="#111">Save service</text>
+<text x="462" y="398" font-size="7.5" text-anchor="middle" fill="#555">«Application Component»</text>
+<rect x="384" y="462" width="156" height="62" rx="6" fill="#b5ffff" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="462" y="489" font-size="11" text-anchor="middle" fill="#111">Demo data seeding</text>
+<text x="462" y="518" font-size="7.5" text-anchor="middle" fill="#555">«Application Component»</text>
+<rect x="202" y="572" width="156" height="62" rx="6" fill="#b5ffff" fill-opacity="0.55" stroke="#333" stroke-width="1" stroke-dasharray="5 3"/>
+<text x="280" y="599" font-size="11" text-anchor="middle" fill="#111">Transcription adapter</text>
+<text x="280" y="628" font-size="7.5" text-anchor="middle" fill="#555">«Application Component» · not configured</text>
+<rect x="566" y="66" width="156" height="62" rx="6" fill="#b5ffff" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="644" y="93" font-size="11" text-anchor="middle" fill="#111">Language adapter</text>
+<text x="644" y="122" font-size="7.5" text-anchor="middle" fill="#555">«Application Component»</text>
+<rect x="748" y="66" width="156" height="62" rx="6" fill="#b5ffff" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="826" y="93" font-size="11" text-anchor="middle" fill="#111">Question interpreter</text>
+<text x="826" y="122" font-size="7.5" text-anchor="middle" fill="#555">«Application Component»</text>
+<rect x="748" y="186" width="156" height="62" rx="6" fill="#b5ffff" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="826" y="213" font-size="11" text-anchor="middle" fill="#111">Jev client</text>
+<text x="826" y="242" font-size="7.5" text-anchor="middle" fill="#555">«Application Component» · opt-in</text>
+<rect x="930" y="186" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="1" stroke="#555" stroke-width="1"/>
+<text x="1008" y="206.5" font-size="11" text-anchor="middle" fill="#111">System One</text>
+<text x="1008" y="219.5" font-size="11" text-anchor="middle" fill="#111">classification API</text>
+<text x="1008" y="242" font-size="7.5" text-anchor="middle" fill="#555">«Technology Service» · external</text>
+<rect x="566" y="278" width="156" height="62" rx="6" fill="#b5ffff" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="644" y="298.5" font-size="11" text-anchor="middle" fill="#111">Review and approval</text>
+<text x="644" y="311.5" font-size="11" text-anchor="middle" fill="#111">engine</text>
+<text x="644" y="334" font-size="7.5" text-anchor="middle" fill="#555">«Application Component»</text>
+<rect x="566" y="434" width="156" height="62" rx="6" fill="#b5ffff" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="644" y="454.5" font-size="11" text-anchor="middle" fill="#111">EHR adapter (HAPI R4,</text>
+<text x="644" y="467.5" font-size="11" text-anchor="middle" fill="#111">Epic)</text>
+<text x="644" y="490" font-size="7.5" text-anchor="middle" fill="#555">«Application Component»</text>
+<rect x="748" y="333" width="156" height="62" rx="6" fill="#b5ffff" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="826" y="353.5" font-size="11" text-anchor="middle" fill="#111">FHIR builders and</text>
+<text x="826" y="366.5" font-size="11" text-anchor="middle" fill="#111">patient guard</text>
+<text x="826" y="389" font-size="7.5" text-anchor="middle" fill="#555">«Application Component»</text>
+<rect x="748" y="452" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="1" stroke="#555" stroke-width="1"/>
+<text x="826" y="479" font-size="11" text-anchor="middle" fill="#111">FHIR R4 REST API</text>
+<text x="826" y="508" font-size="7.5" text-anchor="middle" fill="#555">«Technology Service» · external</text>
+<rect x="56" y="388" width="156" height="62" rx="6" fill="#b5ffff" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="134" y="408.5" font-size="11" text-anchor="middle" fill="#111">Internal REST/JSON API</text>
+<text x="134" y="421.5" font-size="11" text-anchor="middle" fill="#111">(/api/*)</text>
+<text x="134" y="444" font-size="7.5" text-anchor="middle" fill="#555">«Application Interface»</text>
+<rect x="566" y="563" width="156" height="62" rx="6" fill="#b5ffff" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="644" y="590" font-size="11" text-anchor="middle" fill="#111">EHR access service</text>
+<text x="644" y="619" font-size="7.5" text-anchor="middle" fill="#555">«Application Service»</text>
+<rect x="202" y="66" width="156" height="62" rx="6" fill="#b5ffff" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="280" y="93" font-size="11" text-anchor="middle" fill="#111">FHIR source registry</text>
+<text x="280" y="122" font-size="7.5" text-anchor="middle" fill="#555">«Application Component»</text>
+<rect x="20" y="112" width="156" height="62" rx="6" fill="#b5ffff" fill-opacity="1" stroke="#333" stroke-width="1"/>
+<text x="98" y="139" font-size="11" text-anchor="middle" fill="#111">SMART login and session</text>
+<text x="98" y="168" font-size="7.5" text-anchor="middle" fill="#555">«Application Component»</text>
+<rect x="748" y="563" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="1" stroke="#555" stroke-width="1"/>
+<text x="826" y="590" font-size="11" text-anchor="middle" fill="#111">Epic FHIR R4 API</text>
+<text x="826" y="619" font-size="7.5" text-anchor="middle" fill="#555">«Technology Service» · external</text>
+<rect x="20" y="20" width="156" height="62" rx="6" fill="#c9e7b7" fill-opacity="1" stroke="#555" stroke-width="1"/>
+<text x="98" y="40.5" font-size="11" text-anchor="middle" fill="#111">Epic SMART / OAuth 2.0</text>
+<text x="98" y="53.5" font-size="11" text-anchor="middle" fill="#111">service</text>
+<text x="98" y="76" font-size="7.5" text-anchor="middle" fill="#555">«Technology Service» · external</text>
+<line x1="178.0" y1="281.0" x2="200.0" y2="281.0" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="312.6" y1="248.0" x2="429.4" y2="130.0" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="360.0" y1="260.8" x2="382.0" y2="255.2" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="345.3" y1="314.0" x2="396.7" y2="340.0" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="308.3" y1="314.0" x2="433.7" y2="460.0" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="280.0" y1="314.0" x2="280.0" y2="570.0" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="542.0" y1="97.0" x2="564.0" y2="97.0" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="724.0" y1="97.0" x2="746.0" y2="97.0" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="600.5" y1="130.0" x2="505.5" y2="202.0" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="826.0" y1="130.0" x2="826.0" y2="184.0" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="542.0" y1="231.0" x2="746.0" y2="221.0" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="542.0" y1="267.5" x2="564.0" y2="276.5" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="542.0" y1="344.9" x2="564.0" y2="337.1" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="527.3" y1="406.0" x2="578.7" y2="432.0" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="542.0" y1="480.7" x2="564.0" y2="477.3" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="703.5" y1="432.0" x2="766.5" y2="397.0" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="928.0" y1="217.0" x2="906.0" y2="217.0" stroke="#333" stroke-width="1.1" marker-end="url(#open)"/>
+<line x1="746.0" y1="475.1" x2="724.0" y2="472.9" stroke="#333" stroke-width="1.1" marker-end="url(#open)"/>
+<line x1="125.4" y1="386.0" x2="106.6" y2="314.0" stroke="#333" stroke-width="1.1" marker-end="url(#open)"/>
+<line x1="245.1" y1="314.0" x2="168.9" y2="386.0" stroke="#333" stroke-width="1.1" marker-start="url(#diamond)"/>
+<line x1="644.0" y1="498.0" x2="644.0" y2="561.0" stroke="#333" stroke-width="1.1" stroke-dasharray="3 3" marker-end="url(#hollow)"/>
+<line x1="280.0" y1="248.0" x2="280.0" y2="130.0" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="236.5" y1="248.0" x2="141.5" y2="176.0" stroke="#333" stroke-width="1.1" stroke-dasharray="6 3" marker-end="url(#filled)"/>
+<line x1="779.4" y1="561.0" x2="690.6" y2="498.0" stroke="#333" stroke-width="1.1" marker-end="url(#open)"/>
+<line x1="98.0" y1="84.0" x2="98.0" y2="110.0" stroke="#333" stroke-width="1.1" marker-end="url(#open)"/>
+</svg>

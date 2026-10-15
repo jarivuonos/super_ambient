@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(!.env.example)"
+    ],
+    "ask": [
+      "Bash(bun run smoke:hapi *)",
+      "Bash(bun scripts/smoke-hapi.ts *)",
+      "Bash(bun run e2e:ui *)",
+      "Bash(bun scripts/ui-e2e.ts *)",
+      "Bash(bun run eval:interpret *--jev*)",
+      "Bash(bun run eval:structure *--jev*)",
+      "Bash(bun scripts/eval-interpret.ts *--jev*)",
+      "Bash(bun scripts/eval-structure.ts *--jev*)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
+    ],
+    "allow": [
+      "Bash(TYPESAFE_API_KEY= LLM_API_KEY= bun --bun next start *)",
+      "Bash(TYPESAFE_API_KEY= LLM_API_KEY= bun --bun next dev *)",
+      "Bash(LLM_PROVIDER=jev TYPESAFE_API_KEY= LLM_API_KEY= bun --bun next start *)",
+      "Bash(LLM_PROVIDER=jev LLM_STRUCTURING=jev TYPESAFE_API_KEY= LLM_API_KEY= bun --bun next start *)",
+      "Bash(LLM_PROVIDER=mock bun --bun next start *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-env-reads.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

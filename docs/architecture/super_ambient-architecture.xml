@@ -1,0 +1,1198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<model xmlns="http://www.opengroup.org/xsd/archimate/3.0/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengroup.org/xsd/archimate/3.0/ http://www.opengroup.org/xsd/archimate/3.1/archimate3_Diagram.xsd" identifier="id-model-super-ambient">
+  <name xml:lang="en">super_ambient: preliminary architecture</name>
+  <documentation xml:lang="en">Preliminary ArchiMate model of the super_ambient demo (synthetic-data FHIR patient workspace with ambient documentation and Jev classification). Generated from the code; not reviewed. See the accompanying PDF for the narrative.</documentation>
+  <properties>
+    <property propertyDefinitionRef="id-pd-gen"><value xml:lang="en">commit cae3d1b plus uncommitted changes, generated 2026-10-15</value></property>
+    <property propertyDefinitionRef="id-pd-review"><value xml:lang="en">preliminary, not reviewed</value></property>
+  </properties>
+  <elements>
+    <element identifier="id-stk-clin" xsi:type="Stakeholder">
+      <name xml:lang="en">Clinician</name>
+      <documentation xml:lang="en">Reads patient data and documents consultations; the intended end user.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+      </properties>
+    </element>
+    <element identifier="id-stk-owner" xsi:type="Stakeholder">
+      <name xml:lang="en">Application owner and developer</name>
+      <documentation xml:lang="en">Decides scope, approves plans and runs the live evaluations.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+      </properties>
+    </element>
+    <element identifier="id-stk-doctor" xsi:type="Stakeholder">
+      <name xml:lang="en">Medical doctor (domain reviewer)</name>
+      <documentation xml:lang="en">Not yet involved in review. Will advise on blood pressure pairing and clinical labels.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+      </properties>
+    </element>
+    <element identifier="id-stk-it" xsi:type="Stakeholder">
+      <name xml:lang="en">Employer IT (future Azure tenant)</name>
+      <documentation xml:lang="en">Will host the application in a later phase.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+      </properties>
+    </element>
+    <element identifier="id-drv-load" xsi:type="Driver">
+      <name xml:lang="en">Documentation workload and scattered patient data</name>
+      <documentation xml:lang="en">Clinicians spend time finding data and writing notes.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+      </properties>
+    </element>
+    <element identifier="id-goal-understand" xsi:type="Goal">
+      <name xml:lang="en">Understand the patient's situation quickly</name>
+      <documentation xml:lang="en">Ask questions in plain language and get source-grounded answers.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+      </properties>
+    </element>
+    <element identifier="id-goal-document" xsi:type="Goal">
+      <name xml:lang="en">Document the consultation smoothly</name>
+      <documentation xml:lang="en">Turn a conversation into a reviewable note and structured suggestions.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+      </properties>
+    </element>
+    <element identifier="id-goal-demo" xsi:type="Goal">
+      <name xml:lang="en">Show where smart classification helps, safely</name>
+      <documentation xml:lang="en">Use Jev as a classifier inside strict, human-reviewed boundaries.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+      </properties>
+    </element>
+    <element identifier="id-pr-human" xsi:type="Principle">
+      <name xml:lang="en">Human approval before anything is saved</name>
+      <documentation xml:lang="en">Proposals start unreviewed; edits revoke approval; the save path re-checks everything.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-pr-grounded" xsi:type="Principle">
+      <name xml:lang="en">Answers and proposals trace to a source</name>
+      <documentation xml:lang="en">Facts carry resource id and field; proposals carry an exact transcript quote.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-pr-app-fhir" xsi:type="Principle">
+      <name xml:lang="en">The application, not a model, builds FHIR</name>
+      <documentation xml:lang="en">Typed builders produce every saved resource; model output is never sent as a bundle.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-pr-secrets" xsi:type="Principle">
+      <name xml:lang="en">Secrets and keys stay on the server</name>
+      <documentation xml:lang="en">Keys are read from server-side environment variables only; errors never carry them.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-con-synth" xsi:type="Constraint">
+      <name xml:lang="en">Synthetic data only (public, unauthenticated test server)</name>
+      <documentation xml:lang="en">The public HAPI server has no privacy and is wiped periodically.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+      </properties>
+    </element>
+    <element identifier="id-con-optin" xsi:type="Constraint">
+      <name xml:lang="en">Sending transcript text to a third party is opt-in</name>
+      <documentation xml:lang="en">LLM_STRUCTURING=jev is off by default and warns in the UI.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-req-scope" xsi:type="Requirement">
+      <name xml:lang="en">Patient and encounter context enforced on every read and write</name>
+      <documentation xml:lang="en">Returned and followed resources are checked against the selected patient; writes only for demo-tagged patients.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/fhir/patient-guard.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/workflow/save.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-req-fallback" xsi:type="Requirement">
+      <name xml:lang="en">Works without a model service (visible mock mode)</name>
+      <documentation xml:lang="en">Default provider is a rule-based mock that is labelled as such.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/clinical/language-adapter.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ba-clin" xsi:type="BusinessActor">
+      <name xml:lang="en">Clinician</name>
+      <documentation xml:lang="en">The person using the workspace.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+      </properties>
+    </element>
+    <element identifier="id-br-clin" xsi:type="BusinessRole">
+      <name xml:lang="en">Treating clinician</name>
+      <documentation xml:lang="en">Role that asks, records, reviews and saves.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+      </properties>
+    </element>
+    <element identifier="id-bp-ask" xsi:type="BusinessProcess">
+      <name xml:lang="en">Ask about patient data</name>
+      <documentation xml:lang="en">Pose a question, read the answer with its source observations.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-bp-record" xsi:type="BusinessProcess">
+      <name xml:lang="en">Record and document a consultation</name>
+      <documentation xml:lang="en">Record or paste a rehearsal conversation and build a note draft.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-bp-review" xsi:type="BusinessProcess">
+      <name xml:lang="en">Review and approve proposals</name>
+      <documentation xml:lang="en">Edit, approve or reject each structured suggestion and the note.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-bp-save" xsi:type="BusinessProcess">
+      <name xml:lang="en">Save approved content to the EHR</name>
+      <documentation xml:lang="en">Preview, save as one transaction, and read the resources back.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-bs-info" xsi:type="BusinessService">
+      <name xml:lang="en">Patient information retrieval</name>
+      <documentation xml:lang="en">Answers to questions about the selected patient.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-bs-doc" xsi:type="BusinessService">
+      <name xml:lang="en">Consultation documentation</name>
+      <documentation xml:lang="en">Draft note and structured proposals from a conversation.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-bo-note" xsi:type="BusinessObject">
+      <name xml:lang="en">Visit note</name>
+      <documentation xml:lang="en">The consultation note (käyntimerkintä); saved as a DocumentReference with docStatus preliminary.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-bo-record" xsi:type="BusinessObject">
+      <name xml:lang="en">Patient record</name>
+      <documentation xml:lang="en">The patient's data held in the EHR (the public HAPI server in the demo).</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-web" xsi:type="ApplicationComponent">
+      <name xml:lang="en">Web UI</name>
+      <documentation xml:lang="en">React client: patient and visit selection, Ask view, recording and documentation view.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">components/Workspace.tsx</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">components/AskView.tsx</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">components/RecordView.tsx</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">components/ui.tsx</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">components/api.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-workspace" xsi:type="ApplicationComponent">
+      <name xml:lang="en">Workspace shell</name>
+      <documentation xml:lang="en">Persistent context bar, patient search, encounter picker, status and seeding panels; guards against stale responses.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">components/Workspace.tsx</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-askview" xsi:type="ApplicationComponent">
+      <name xml:lang="en">Ask view</name>
+      <documentation xml:lang="en">Question box, answer, source facts, search plan and technical details.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">components/AskView.tsx</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-recordview" xsi:type="ApplicationComponent">
+      <name xml:lang="en">Recording and documentation view</name>
+      <documentation xml:lang="en">Audio capture, transcript editor, sample conversations, proposal table, preview, save and read-back.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">components/RecordView.tsx</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-server" xsi:type="ApplicationComponent">
+      <name xml:lang="en">Application server</name>
+      <documentation xml:lang="en">Server-side logic in Next.js route handlers and the lib/ modules; holds all secrets and external connections.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">app/api</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-api" xsi:type="ApplicationComponent">
+      <name xml:lang="en">API layer (route handlers)</name>
+      <documentation xml:lang="en">Validates request bodies with strict schemas and delegates to the services.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">app/api/ask/route.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">app/api/structure/route.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">app/api/save/route.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">app/api/save/preview/route.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">app/api/read/route.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">app/api/patients/route.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">app/api/encounters/route.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">app/api/status/route.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-qa" xsi:type="ApplicationComponent">
+      <name xml:lang="en">Question answering</name>
+      <documentation xml:lang="en">Interprets a question, runs allow-listed read searches, extracts facts and composes a grounded answer.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/clinical/ask.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/clinical/facts.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/clinical/intents.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-interp" xsi:type="ApplicationComponent">
+      <name xml:lang="en">Question interpreter</name>
+      <documentation xml:lang="en">Maps a question to an information need: Jev classification or keyword mock.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/clinical/jev-interpreter.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/clinical/mock-language.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-struct" xsi:type="ApplicationComponent">
+      <name xml:lang="en">Transcript structuring</name>
+      <documentation xml:lang="en">Turns a transcript into a note draft and proposals. Mock rules by default; Jev classifies sentences when LLM_STRUCTURING=jev.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">opt-in</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/clinical/jev-structurer.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/clinical/sentence-classifier.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/clinical/mock-structurer.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/clinical/sentences.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/clinical/measurements.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/clinical/text-rules.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-review" xsi:type="ApplicationComponent">
+      <name xml:lang="en">Review and approval engine</name>
+      <documentation xml:lang="en">Approval hashes, staleness, allowed FHIR targets and validation of structuring output.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/workflow/review.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-save" xsi:type="ApplicationComponent">
+      <name xml:lang="en">Save service</name>
+      <documentation xml:lang="en">Server-side re-check, preview, validation, one transaction with conditional create, read-back and timeout recovery.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/workflow/save.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-build" xsi:type="ApplicationComponent">
+      <name xml:lang="en">FHIR builders and patient guard</name>
+      <documentation xml:lang="en">Allow-listed search builders, typed resource builders and the patient-scope guard.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/fhir/search-builders.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/fhir/resource-builders.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/fhir/patient-guard.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-ehr" xsi:type="ApplicationComponent">
+      <name xml:lang="en">EHR adapter (HAPI R4, Epic)</name>
+      <documentation xml:lang="en">EhrAdapter interface and its R4 implementation: paging, limits, retries, capability check, optional Bearer token. One shared instance for sources without login; a new instance per request for sources with login.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/fhir/ehr-adapter.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/fhir/hapi-adapter.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/fhir/http.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/services.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-sources" xsi:type="ApplicationComponent">
+      <name xml:lang="en">FHIR source registry</name>
+      <documentation xml:lang="en">The only place that defines a source: address, login type, write permission and patient-search form. The browser sends only a source id; unknown ids are rejected and read-only sources refuse writes.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/fhir/sources.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-auth" xsi:type="ApplicationComponent">
+      <name xml:lang="en">SMART login and session</name>
+      <documentation xml:lang="en">Authorization code flow with PKCE (S256) as a public client; endpoints discovered from the server and restricted to its origin. The access token lives in an httpOnly cookie that only the server reads; no server-side session store.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/auth/pkce.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/auth/smart.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/auth/session.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/auth/errors.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">app/api/auth/[source]/login/route.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">app/api/auth/[source]/callback/route.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">app/api/auth/[source]/logout/route.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-lang" xsi:type="ApplicationComponent">
+      <name xml:lang="en">Language adapter</name>
+      <documentation xml:lang="en">Selects mock, Jev hybrid or unavailable and reports per capability who does what.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/clinical/language-adapter.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-jev" xsi:type="ApplicationComponent">
+      <name xml:lang="en">Jev client</name>
+      <documentation xml:lang="en">Timeout, bounded retries, strict response parsing; errors never carry key or text.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">opt-in</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/clinical/jev-client.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/jev-settings.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-seed" xsi:type="ApplicationComponent">
+      <name xml:lang="en">Demo data seeding</name>
+      <documentation xml:lang="en">User-triggered upload of the app's own synthetic fixtures (second write path next to the save service).</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">app/api/seed/route.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/fhir/fixtures.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-stt" xsi:type="ApplicationComponent">
+      <name xml:lang="en">Transcription adapter</name>
+      <documentation xml:lang="en">Interface for speech-to-text; no provider is wired, so transcripts are pasted by hand.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">not-configured</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/transcription/adapter.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">app/api/transcribe/route.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-conf" xsi:type="ApplicationComponent">
+      <name xml:lang="en">Configuration and service wiring</name>
+      <documentation xml:lang="en">Reads environment settings and creates the adapters.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/config.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/services.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-eval" xsi:type="ApplicationComponent">
+      <name xml:lang="en">Evaluation and smoke tooling</name>
+      <documentation xml:lang="en">Eval scripts (mock and live Jev), HAPI smoke test and browser walkthrough.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">dev-tooling</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">scripts/eval-interpret.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">scripts/eval-structure.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">scripts/smoke-hapi.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">scripts/ui-e2e.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ac-tests" xsi:type="ApplicationComponent">
+      <name xml:lang="en">Automated tests (Vitest)</name>
+      <documentation xml:lang="en">Unit and integration tests against an in-memory FHIR fake and a scripted Jev; no UI or route tests.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">dev-tooling</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">tests</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ai-rest" xsi:type="ApplicationInterface">
+      <name xml:lang="en">Internal REST/JSON API (/api/*)</name>
+      <documentation xml:lang="en">The only interface between browser and server.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">app/api</value></property>
+      </properties>
+    </element>
+    <element identifier="id-as-ask" xsi:type="ApplicationService">
+      <name xml:lang="en">Patient data question service</name>
+      <documentation xml:lang="en">POST /api/ask.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-as-struct" xsi:type="ApplicationService">
+      <name xml:lang="en">Transcript structuring service</name>
+      <documentation xml:lang="en">POST /api/structure.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-as-save" xsi:type="ApplicationService">
+      <name xml:lang="en">Documentation save service</name>
+      <documentation xml:lang="en">POST /api/save/preview, /api/save and /api/read.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-as-ehr" xsi:type="ApplicationService">
+      <name xml:lang="en">EHR access service</name>
+      <documentation xml:lang="en">Patient, encounter and resource reads and the write transaction.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-do-need" xsi:type="DataObject">
+      <name xml:lang="en">Information need</name>
+      <documentation xml:lang="en">Strict schema: intent, resource types, time range, scope. Never contains a URL or patient.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-do-fact" xsi:type="DataObject">
+      <name xml:lang="en">Fact (source-grounded)</name>
+      <documentation xml:lang="en">A value or statement with resource id, fields and clinical time.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-do-transcript" xsi:type="DataObject">
+      <name xml:lang="en">Transcript</name>
+      <documentation xml:lang="en">Speaker-labelled segments with a content version.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-do-proposal" xsi:type="DataObject">
+      <name xml:lang="en">Proposal</name>
+      <documentation xml:lang="en">Reviewable suggestion: type, value, exact source quote, certainty, review status.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-do-note" xsi:type="DataObject">
+      <name xml:lang="en">Note draft</name>
+      <documentation xml:lang="en">Reason, history, findings, assessment and plan sections.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-do-bundle" xsi:type="DataObject">
+      <name xml:lang="en">Transaction bundle and snapshot</name>
+      <documentation xml:lang="en">The previewed bundle and the hash the server re-checks.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-do-fhir" xsi:type="DataObject">
+      <name xml:lang="en">FHIR resources</name>
+      <documentation xml:lang="en">Patient, Encounter, Observation, Condition, DocumentReference and read-only types.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-do-fixtures" xsi:type="DataObject">
+      <name xml:lang="en">Demo fixtures</name>
+      <documentation xml:lang="en">Two synthetic patients with visits, vitals, labs, medication, allergy, problem and a report.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/fhir/fixtures.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-do-gold" xsi:type="DataObject">
+      <name xml:lang="en">Sample conversations and gold sets</name>
+      <documentation xml:lang="en">14 synthetic conversations and question sets; written by an AI, not reviewed by a doctor.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">dev-tooling</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/clinical/sample-conversations.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">scripts/data/question-eval-set.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-tn-browser" xsi:type="Node">
+      <name xml:lang="en">Clinician's browser</name>
+      <documentation xml:lang="en">Runs the React client; captures audio locally and keeps it in memory.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ss-media" xsi:type="SystemSoftware">
+      <name xml:lang="en">Browser audio capture (MediaRecorder)</name>
+      <documentation xml:lang="en">Audio is never sent to HAPI; it goes to a transcription service only on an explicit action.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-art-client" xsi:type="Artifact">
+      <name xml:lang="en">Client JavaScript bundle</name>
+      <documentation xml:lang="en">Output of next build.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-art-cookie" xsi:type="Artifact">
+      <name xml:lang="en">Access-token cookie (httpOnly)</name>
+      <documentation xml:lang="en">Holds the OAuth access token for a source that needs login (about one hour). SameSite=Strict, Secure on https; unreadable by page scripts.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/auth/session.ts</value></property>
+      </properties>
+    </element>
+    <element identifier="id-tn-dev" xsi:type="Node">
+      <name xml:lang="en">Developer workstation (Linux)</name>
+      <documentation xml:lang="en">bun run dev; no Node installed, Bun runs everything.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ss-bun" xsi:type="SystemSoftware">
+      <name xml:lang="en">Bun runtime and package manager</name>
+      <documentation xml:lang="en">bun@1.4.2, bun.lock.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">package.json</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ss-next" xsi:type="SystemSoftware">
+      <name xml:lang="en">Next.js 16 and React 19</name>
+      <documentation xml:lang="en">App Router with cacheComponents.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">next.config.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">package.json</value></property>
+      </properties>
+    </element>
+    <element identifier="id-tn-vercel" xsi:type="Node">
+      <name xml:lang="en">Vercel hosting (current)</name>
+      <documentation xml:lang="en">Hosts the deployed demo; not protected by login unless Deployment Protection is on.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ss-nextrun" xsi:type="SystemSoftware">
+      <name xml:lang="en">Next.js server runtime</name>
+      <documentation xml:lang="en">Serverless functions; capability cache is per instance.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+      </properties>
+    </element>
+    <element identifier="id-art-server" xsi:type="Artifact">
+      <name xml:lang="en">Next.js server build</name>
+      <documentation xml:lang="en">Route handlers and server modules.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-art-config" xsi:type="Artifact">
+      <name xml:lang="en">Server environment configuration</name>
+      <documentation xml:lang="en">Host environment variables or a local env file; holds the Jev key and the Epic client id.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/config.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">.env.example</value></property>
+      </properties>
+    </element>
+    <element identifier="id-tn-azure" xsi:type="Node">
+      <name xml:lang="en">Employer Azure tenant (planned)</name>
+      <documentation xml:lang="en">Target hosting; may also run an ICD-API VM.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">planned</value></property>
+      </properties>
+    </element>
+    <element identifier="id-tn-hapi" xsi:type="Node">
+      <name xml:lang="en">HAPI FHIR public test server</name>
+      <documentation xml:lang="en">https://hapi.fhir.org/baseR4; shared, unauthenticated, wiped periodically.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">external</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ts-fhir" xsi:type="TechnologyService">
+      <name xml:lang="en">FHIR R4 REST API</name>
+      <documentation xml:lang="en">Search, read, $validate and transaction.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">external</value></property>
+      </properties>
+    </element>
+    <element identifier="id-tn-epic" xsi:type="Node">
+      <name xml:lang="en">Epic on FHIR sandbox</name>
+      <documentation xml:lang="en">https://fhir.epic.com/interconnect-fhir-oauth; synthetic test patients, login with documented test users; the app reads only.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">external</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ts-epic-fhir" xsi:type="TechnologyService">
+      <name xml:lang="en">Epic FHIR R4 API</name>
+      <documentation xml:lang="en">Patient (demographics search needs a birth date with the name), Encounter, Observation and other reads.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">external</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ts-epic-oauth" xsi:type="TechnologyService">
+      <name xml:lang="en">Epic SMART / OAuth 2.0 service</name>
+      <documentation xml:lang="en">authorize and token endpoints from .well-known/smart-configuration; PKCE S256, standalone launch, public client.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">external</value></property>
+      </properties>
+    </element>
+    <element identifier="id-tn-typesafe" xsi:type="Node">
+      <name xml:lang="en">Typesafe AI cloud (Jev)</name>
+      <documentation xml:lang="en">https://api.typesafe.ai/v1/systemone; data-processing terms not yet checked.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">external</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ts-jev" xsi:type="TechnologyService">
+      <name xml:lang="en">System One classification API</name>
+      <documentation xml:lang="en">Typed questions (choice, score, noul) over a state; no text generation.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">external</value></property>
+      </properties>
+    </element>
+    <element identifier="id-tn-icd" xsi:type="Node">
+      <name xml:lang="en">ICD-API service (local, systemd)</name>
+      <documentation xml:lang="en">Runs on the owner's machine (port 8382); unreachable from Vercel.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">parked</value></property>
+      </properties>
+    </element>
+    <element identifier="id-ts-icd" xsi:type="TechnologyService">
+      <name xml:lang="en">ICD-11 search API</name>
+      <documentation xml:lang="en">Possible future code suggestions; ICD-10 would be needed for production.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">parked</value></property>
+      </properties>
+    </element>
+    <element identifier="id-net-internet" xsi:type="CommunicationNetwork">
+      <name xml:lang="en">Internet (HTTPS)</name>
+      <documentation xml:lang="en">All browser-to-server and server-to-service traffic.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+      </properties>
+    </element>
+    <element identifier="id-wp-core" xsi:type="WorkPackage">
+      <name xml:lang="en">Core workspace, HAPI adapter and save path</name>
+      <documentation xml:lang="en">Delivered first version of the specification.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-wp-jev-q" xsi:type="WorkPackage">
+      <name xml:lang="en">Jev question interpretation</name>
+      <documentation xml:lang="en">Classifier-based interpretation with thresholds and an evaluation set.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+      </properties>
+    </element>
+    <element identifier="id-wp-jev-s" xsi:type="WorkPackage">
+      <name xml:lang="en">Jev transcript structuring with clause splitting</name>
+      <documentation xml:lang="en">Opt-in hybrid structuring; evaluation on synthetic gold set.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">opt-in</value></property>
+      </properties>
+    </element>
+    <element identifier="id-wp-guard" xsi:type="WorkPackage">
+      <name xml:lang="en">Agent guardrails (AGENTS.md, permissions, hook)</name>
+      <documentation xml:lang="en">Project instructions, permission rules and an .env hook.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">AGENTS.md</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">.claude/settings.json</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">.claude/hooks/block-env-reads.sh</value></property>
+      </properties>
+    </element>
+    <element identifier="id-wp-epic" xsi:type="WorkPackage">
+      <name xml:lang="en">Second FHIR source: Epic sandbox (read-only, SMART login)</name>
+      <documentation xml:lang="en">Source registry and selector, PKCE login with cookie session, Epic search shapes and test-patient list. Verified by the owner for login, patient search, encounters and a blood-pressure question.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">implemented</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/fhir/sources.ts</value></property>
+        <property propertyDefinitionRef="id-pd-source"><value xml:lang="en">lib/auth</value></property>
+      </properties>
+    </element>
+    <element identifier="id-wp-epic-q" xsi:type="WorkPackage">
+      <name xml:lang="en">Verify more question types against Epic</name>
+      <documentation xml:lang="en">Labs, allergies, medications and conditions; Epic's _sort support is unchecked.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">planned</value></property>
+      </properties>
+    </element>
+    <element identifier="id-wp-epic-cloud" xsi:type="WorkPackage">
+      <name xml:lang="en">Epic login from the Vercel deployment</name>
+      <documentation xml:lang="en">Register the Vercel callback URI at Epic, set the client id in Vercel, deploy the new code.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">planned</value></property>
+      </properties>
+    </element>
+    <element identifier="id-wp-heldout" xsi:type="WorkPackage">
+      <name xml:lang="en">Held-out evaluation with doctor-written transcripts</name>
+      <documentation xml:lang="en">The real accuracy check; the current sets are in-sample.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">planned</value></property>
+      </properties>
+    </element>
+    <element identifier="id-wp-qa" xsi:type="WorkPackage">
+      <name xml:lang="en">Question-and-answer pair handling</name>
+      <documentation xml:lang="en">Short replies such as 'Ei.' need the preceding question.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">planned</value></property>
+      </properties>
+    </element>
+    <element identifier="id-wp-progress" xsi:type="WorkPackage">
+      <name xml:lang="en">Progress indication for structuring</name>
+      <documentation xml:lang="en">About 300 ms per sentence at concurrency 1.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">planned</value></property>
+      </properties>
+    </element>
+    <element identifier="id-wp-azure" xsi:type="WorkPackage">
+      <name xml:lang="en">Migrate to the employer's Azure tenant</name>
+      <documentation xml:lang="en">Hosting, secrets store, identity and network rules.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">planned</value></property>
+      </properties>
+    </element>
+    <element identifier="id-wp-icd" xsi:type="WorkPackage">
+      <name xml:lang="en">ICD-11 code suggestions</name>
+      <documentation xml:lang="en">Nice-to-have; needs a Finnish-to-English vocabulary step.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">parked</value></property>
+      </properties>
+    </element>
+    <element identifier="id-pl-demo" xsi:type="Plateau">
+      <name xml:lang="en">Plateau 1: Vercel demo with Jev</name>
+      <documentation xml:lang="en">Today's state.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">current</value></property>
+      </properties>
+    </element>
+    <element identifier="id-pl-azure" xsi:type="Plateau">
+      <name xml:lang="en">Plateau 2: Azure-hosted demo</name>
+      <documentation xml:lang="en">Target state, still a demo.</documentation>
+      <properties>
+        <property propertyDefinitionRef="id-pd-status"><value xml:lang="en">planned</value></property>
+      </properties>
+    </element>
+  </elements>
+  <relationships>
+    <relationship identifier="id-rel-1" source="id-stk-clin" target="id-drv-load" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-2" source="id-stk-owner" target="id-drv-load" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-3" source="id-stk-doctor" target="id-goal-document" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-4" source="id-stk-it" target="id-wp-azure" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-5" source="id-drv-load" target="id-goal-understand" xsi:type="Influence"/>
+    <relationship identifier="id-rel-6" source="id-drv-load" target="id-goal-document" xsi:type="Influence"/>
+    <relationship identifier="id-rel-7" source="id-pr-grounded" target="id-goal-understand" xsi:type="Influence"/>
+    <relationship identifier="id-rel-8" source="id-pr-human" target="id-goal-document" xsi:type="Influence"/>
+    <relationship identifier="id-rel-9" source="id-pr-app-fhir" target="id-goal-document" xsi:type="Influence"/>
+    <relationship identifier="id-rel-10" source="id-pr-secrets" target="id-goal-demo" xsi:type="Influence"/>
+    <relationship identifier="id-rel-11" source="id-req-scope" target="id-goal-understand" xsi:type="Realization"/>
+    <relationship identifier="id-rel-12" source="id-req-fallback" target="id-goal-demo" xsi:type="Realization"/>
+    <relationship identifier="id-rel-13" source="id-con-synth" target="id-req-scope" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-14" source="id-con-optin" target="id-pr-secrets" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-15" source="id-ba-clin" target="id-br-clin" xsi:type="Assignment"/>
+    <relationship identifier="id-rel-16" source="id-br-clin" target="id-bp-ask" xsi:type="Assignment"/>
+    <relationship identifier="id-rel-17" source="id-br-clin" target="id-bp-record" xsi:type="Assignment"/>
+    <relationship identifier="id-rel-18" source="id-br-clin" target="id-bp-review" xsi:type="Assignment"/>
+    <relationship identifier="id-rel-19" source="id-br-clin" target="id-bp-save" xsi:type="Assignment"/>
+    <relationship identifier="id-rel-20" source="id-bp-record" target="id-bp-review" xsi:type="Triggering"/>
+    <relationship identifier="id-rel-21" source="id-bp-review" target="id-bp-save" xsi:type="Triggering"/>
+    <relationship identifier="id-rel-22" source="id-bp-ask" target="id-bs-info" xsi:type="Realization"/>
+    <relationship identifier="id-rel-23" source="id-bp-record" target="id-bs-doc" xsi:type="Realization"/>
+    <relationship identifier="id-rel-24" source="id-bs-info" target="id-br-clin" xsi:type="Serving"/>
+    <relationship identifier="id-rel-25" source="id-bs-doc" target="id-br-clin" xsi:type="Serving"/>
+    <relationship identifier="id-rel-26" source="id-bp-ask" target="id-bo-record" xsi:type="Access" accessType="Read"/>
+    <relationship identifier="id-rel-27" source="id-bp-record" target="id-bo-note" xsi:type="Access" accessType="Write"/>
+    <relationship identifier="id-rel-28" source="id-bp-review" target="id-bo-note" xsi:type="Access" accessType="ReadWrite"/>
+    <relationship identifier="id-rel-29" source="id-bp-save" target="id-bo-record" xsi:type="Access" accessType="Write"/>
+    <relationship identifier="id-rel-30" source="id-do-note" target="id-bo-note" xsi:type="Realization"/>
+    <relationship identifier="id-rel-31" source="id-do-fhir" target="id-bo-record" xsi:type="Realization"/>
+    <relationship identifier="id-rel-32" source="id-as-ask" target="id-bp-ask" xsi:type="Serving"/>
+    <relationship identifier="id-rel-33" source="id-as-struct" target="id-bp-record" xsi:type="Serving"/>
+    <relationship identifier="id-rel-34" source="id-as-save" target="id-bp-save" xsi:type="Serving"/>
+    <relationship identifier="id-rel-35" source="id-ac-recordview" target="id-bp-review" xsi:type="Serving"/>
+    <relationship identifier="id-rel-36" source="id-ac-askview" target="id-bp-ask" xsi:type="Serving"/>
+    <relationship identifier="id-rel-37" source="id-ac-web" target="id-ac-workspace" xsi:type="Composition"/>
+    <relationship identifier="id-rel-38" source="id-ac-web" target="id-ac-askview" xsi:type="Composition"/>
+    <relationship identifier="id-rel-39" source="id-ac-web" target="id-ac-recordview" xsi:type="Composition"/>
+    <relationship identifier="id-rel-40" source="id-ac-server" target="id-ac-api" xsi:type="Composition"/>
+    <relationship identifier="id-rel-41" source="id-ac-server" target="id-ac-qa" xsi:type="Composition"/>
+    <relationship identifier="id-rel-42" source="id-ac-server" target="id-ac-interp" xsi:type="Composition"/>
+    <relationship identifier="id-rel-43" source="id-ac-server" target="id-ac-struct" xsi:type="Composition"/>
+    <relationship identifier="id-rel-44" source="id-ac-server" target="id-ac-review" xsi:type="Composition"/>
+    <relationship identifier="id-rel-45" source="id-ac-server" target="id-ac-save" xsi:type="Composition"/>
+    <relationship identifier="id-rel-46" source="id-ac-server" target="id-ac-build" xsi:type="Composition"/>
+    <relationship identifier="id-rel-47" source="id-ac-server" target="id-ac-ehr" xsi:type="Composition"/>
+    <relationship identifier="id-rel-48" source="id-ac-server" target="id-ac-sources" xsi:type="Composition"/>
+    <relationship identifier="id-rel-49" source="id-ac-server" target="id-ac-auth" xsi:type="Composition"/>
+    <relationship identifier="id-rel-50" source="id-ac-server" target="id-ac-lang" xsi:type="Composition"/>
+    <relationship identifier="id-rel-51" source="id-ac-server" target="id-ac-jev" xsi:type="Composition"/>
+    <relationship identifier="id-rel-52" source="id-ac-server" target="id-ac-seed" xsi:type="Composition"/>
+    <relationship identifier="id-rel-53" source="id-ac-server" target="id-ac-stt" xsi:type="Composition"/>
+    <relationship identifier="id-rel-54" source="id-ac-server" target="id-ac-conf" xsi:type="Composition"/>
+    <relationship identifier="id-rel-55" source="id-ac-api" target="id-ac-sources" xsi:type="Flow"/>
+    <relationship identifier="id-rel-56" source="id-ac-api" target="id-ac-auth" xsi:type="Flow"/>
+    <relationship identifier="id-rel-57" source="id-ac-auth" target="id-ac-ehr" xsi:type="Flow"/>
+    <relationship identifier="id-rel-58" source="id-ac-sources" target="id-ac-ehr" xsi:type="Flow"/>
+    <relationship identifier="id-rel-59" source="id-ac-conf" target="id-ac-sources" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-60" source="id-ac-conf" target="id-ac-auth" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-61" source="id-ac-auth" target="id-art-cookie" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-62" source="id-ac-api" target="id-ai-rest" xsi:type="Composition"/>
+    <relationship identifier="id-rel-63" source="id-ai-rest" target="id-ac-web" xsi:type="Serving"/>
+    <relationship identifier="id-rel-64" source="id-ac-web" target="id-ac-api" xsi:type="Flow"/>
+    <relationship identifier="id-rel-65" source="id-ac-api" target="id-ac-qa" xsi:type="Flow"/>
+    <relationship identifier="id-rel-66" source="id-ac-api" target="id-ac-struct" xsi:type="Flow"/>
+    <relationship identifier="id-rel-67" source="id-ac-api" target="id-ac-save" xsi:type="Flow"/>
+    <relationship identifier="id-rel-68" source="id-ac-api" target="id-ac-seed" xsi:type="Flow"/>
+    <relationship identifier="id-rel-69" source="id-ac-api" target="id-ac-stt" xsi:type="Flow"/>
+    <relationship identifier="id-rel-70" source="id-ac-api" target="id-ac-ehr" xsi:type="Flow"/>
+    <relationship identifier="id-rel-71" source="id-ac-qa" target="id-ac-lang" xsi:type="Flow"/>
+    <relationship identifier="id-rel-72" source="id-ac-lang" target="id-ac-interp" xsi:type="Flow"/>
+    <relationship identifier="id-rel-73" source="id-ac-lang" target="id-ac-struct" xsi:type="Flow"/>
+    <relationship identifier="id-rel-74" source="id-ac-interp" target="id-ac-jev" xsi:type="Flow"/>
+    <relationship identifier="id-rel-75" source="id-ac-struct" target="id-ac-jev" xsi:type="Flow"/>
+    <relationship identifier="id-rel-76" source="id-ac-qa" target="id-ac-ehr" xsi:type="Flow"/>
+    <relationship identifier="id-rel-77" source="id-ac-qa" target="id-ac-build" xsi:type="Flow"/>
+    <relationship identifier="id-rel-78" source="id-ac-struct" target="id-ac-review" xsi:type="Flow"/>
+    <relationship identifier="id-rel-79" source="id-ac-save" target="id-ac-review" xsi:type="Flow"/>
+    <relationship identifier="id-rel-80" source="id-ac-save" target="id-ac-ehr" xsi:type="Flow"/>
+    <relationship identifier="id-rel-81" source="id-ac-save" target="id-ac-build" xsi:type="Flow"/>
+    <relationship identifier="id-rel-82" source="id-ac-seed" target="id-ac-ehr" xsi:type="Flow"/>
+    <relationship identifier="id-rel-83" source="id-ac-ehr" target="id-ac-build" xsi:type="Flow"/>
+    <relationship identifier="id-rel-84" source="id-ac-conf" target="id-ac-lang" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-85" source="id-ac-conf" target="id-ac-ehr" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-86" source="id-ac-conf" target="id-ac-jev" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-87" source="id-ac-qa" target="id-as-ask" xsi:type="Realization"/>
+    <relationship identifier="id-rel-88" source="id-ac-struct" target="id-as-struct" xsi:type="Realization"/>
+    <relationship identifier="id-rel-89" source="id-ac-save" target="id-as-save" xsi:type="Realization"/>
+    <relationship identifier="id-rel-90" source="id-ac-ehr" target="id-as-ehr" xsi:type="Realization"/>
+    <relationship identifier="id-rel-91" source="id-as-ehr" target="id-ac-qa" xsi:type="Serving"/>
+    <relationship identifier="id-rel-92" source="id-as-ehr" target="id-ac-save" xsi:type="Serving"/>
+    <relationship identifier="id-rel-93" source="id-as-ehr" target="id-ac-seed" xsi:type="Serving"/>
+    <relationship identifier="id-rel-94" source="id-ac-qa" target="id-do-need" xsi:type="Access" accessType="Write"/>
+    <relationship identifier="id-rel-95" source="id-ac-qa" target="id-do-fact" xsi:type="Access" accessType="Write"/>
+    <relationship identifier="id-rel-96" source="id-ac-qa" target="id-do-fhir" xsi:type="Access" accessType="Read"/>
+    <relationship identifier="id-rel-97" source="id-ac-struct" target="id-do-transcript" xsi:type="Access" accessType="Read"/>
+    <relationship identifier="id-rel-98" source="id-ac-struct" target="id-do-proposal" xsi:type="Access" accessType="Write"/>
+    <relationship identifier="id-rel-99" source="id-ac-struct" target="id-do-note" xsi:type="Access" accessType="Write"/>
+    <relationship identifier="id-rel-100" source="id-ac-review" target="id-do-proposal" xsi:type="Access" accessType="ReadWrite"/>
+    <relationship identifier="id-rel-101" source="id-ac-save" target="id-do-proposal" xsi:type="Access" accessType="Read"/>
+    <relationship identifier="id-rel-102" source="id-ac-save" target="id-do-bundle" xsi:type="Access" accessType="Write"/>
+    <relationship identifier="id-rel-103" source="id-ac-save" target="id-do-fhir" xsi:type="Access" accessType="ReadWrite"/>
+    <relationship identifier="id-rel-104" source="id-ac-seed" target="id-do-fixtures" xsi:type="Access" accessType="Read"/>
+    <relationship identifier="id-rel-105" source="id-ac-seed" target="id-do-fhir" xsi:type="Access" accessType="Write"/>
+    <relationship identifier="id-rel-106" source="id-ac-eval" target="id-do-gold" xsi:type="Access" accessType="Read"/>
+    <relationship identifier="id-rel-107" source="id-ac-recordview" target="id-do-gold" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-108" source="id-tn-browser" target="id-ss-media" xsi:type="Composition"/>
+    <relationship identifier="id-rel-109" source="id-tn-dev" target="id-ss-bun" xsi:type="Composition"/>
+    <relationship identifier="id-rel-110" source="id-tn-dev" target="id-ss-next" xsi:type="Composition"/>
+    <relationship identifier="id-rel-111" source="id-tn-vercel" target="id-ss-nextrun" xsi:type="Composition"/>
+    <relationship identifier="id-rel-112" source="id-tn-browser" target="id-art-client" xsi:type="Assignment"/>
+    <relationship identifier="id-rel-113" source="id-tn-vercel" target="id-art-server" xsi:type="Assignment"/>
+    <relationship identifier="id-rel-114" source="id-tn-azure" target="id-art-server" xsi:type="Assignment">
+      <properties><property propertyDefinitionRef="id-pd-status"><value xml:lang="en">planned</value></property></properties>
+    </relationship>
+    <relationship identifier="id-rel-115" source="id-art-client" target="id-ac-web" xsi:type="Realization"/>
+    <relationship identifier="id-rel-116" source="id-art-server" target="id-ac-server" xsi:type="Realization"/>
+    <relationship identifier="id-rel-117" source="id-art-config" target="id-ac-conf" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-118" source="id-art-config" target="id-art-server" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-119" source="id-tn-hapi" target="id-ts-fhir" xsi:type="Realization"/>
+    <relationship identifier="id-rel-120" source="id-tn-typesafe" target="id-ts-jev" xsi:type="Realization"/>
+    <relationship identifier="id-rel-121" source="id-tn-icd" target="id-ts-icd" xsi:type="Realization"/>
+    <relationship identifier="id-rel-122" source="id-ts-fhir" target="id-ac-ehr" xsi:type="Serving"/>
+    <relationship identifier="id-rel-123" source="id-ts-jev" target="id-ac-jev" xsi:type="Serving"/>
+    <relationship identifier="id-rel-124" source="id-tn-epic" target="id-ts-epic-fhir" xsi:type="Realization"/>
+    <relationship identifier="id-rel-125" source="id-tn-epic" target="id-ts-epic-oauth" xsi:type="Realization"/>
+    <relationship identifier="id-rel-126" source="id-ts-epic-fhir" target="id-ac-ehr" xsi:type="Serving"/>
+    <relationship identifier="id-rel-127" source="id-ts-epic-oauth" target="id-ac-auth" xsi:type="Serving"/>
+    <relationship identifier="id-rel-128" source="id-tn-browser" target="id-art-cookie" xsi:type="Assignment"/>
+    <relationship identifier="id-rel-129" source="id-tn-vercel" target="id-tn-epic" xsi:type="Flow"/>
+    <relationship identifier="id-rel-130" source="id-net-internet" target="id-tn-epic" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-131" source="id-tn-browser" target="id-tn-vercel" xsi:type="Flow"/>
+    <relationship identifier="id-rel-132" source="id-tn-vercel" target="id-tn-hapi" xsi:type="Flow"/>
+    <relationship identifier="id-rel-133" source="id-tn-vercel" target="id-tn-typesafe" xsi:type="Flow"/>
+    <relationship identifier="id-rel-134" source="id-net-internet" target="id-tn-browser" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-135" source="id-net-internet" target="id-tn-vercel" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-136" source="id-net-internet" target="id-tn-azure" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-137" source="id-net-internet" target="id-tn-hapi" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-138" source="id-net-internet" target="id-tn-typesafe" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-139" source="id-tn-icd" target="id-wp-icd" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-140" source="id-wp-core" target="id-wp-jev-q" xsi:type="Triggering"/>
+    <relationship identifier="id-rel-141" source="id-wp-jev-q" target="id-wp-jev-s" xsi:type="Triggering"/>
+    <relationship identifier="id-rel-142" source="id-wp-core" target="id-pl-demo" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-143" source="id-wp-jev-q" target="id-pl-demo" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-144" source="id-wp-jev-s" target="id-pl-demo" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-145" source="id-wp-guard" target="id-pl-demo" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-146" source="id-wp-heldout" target="id-pl-azure" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-147" source="id-wp-qa" target="id-pl-azure" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-148" source="id-wp-progress" target="id-pl-azure" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-149" source="id-wp-azure" target="id-pl-azure" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-150" source="id-wp-icd" target="id-pl-azure" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-151" source="id-pl-demo" target="id-pl-azure" xsi:type="Triggering"/>
+    <relationship identifier="id-rel-152" source="id-wp-epic" target="id-pl-demo" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-153" source="id-wp-epic-q" target="id-pl-demo" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-154" source="id-wp-epic-cloud" target="id-pl-demo" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-155" source="id-wp-epic" target="id-ac-auth" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-156" source="id-wp-epic" target="id-ac-sources" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-157" source="id-wp-epic" target="id-wp-epic-q" xsi:type="Triggering"/>
+    <relationship identifier="id-rel-158" source="id-wp-epic" target="id-wp-epic-cloud" xsi:type="Triggering"/>
+    <relationship identifier="id-rel-159" source="id-wp-azure" target="id-tn-azure" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-160" source="id-wp-jev-q" target="id-ac-interp" xsi:type="Association" isDirected="false"/>
+    <relationship identifier="id-rel-161" source="id-wp-jev-s" target="id-ac-struct" xsi:type="Association" isDirected="false"/>
+  </relationships>
+  <propertyDefinitions>
+    <propertyDefinition identifier="id-pd-status" type="string"><name xml:lang="en">Status</name></propertyDefinition>
+    <propertyDefinition identifier="id-pd-source" type="string"><name xml:lang="en">Source</name></propertyDefinition>
+    <propertyDefinition identifier="id-pd-gen" type="string"><name xml:lang="en">Generated from</name></propertyDefinition>
+    <propertyDefinition identifier="id-pd-review" type="string"><name xml:lang="en">Review status</name></propertyDefinition>
+  </propertyDefinitions>
+  <views>
+    <diagrams>
+      <view identifier="id-v-motivation">
+        <name xml:lang="en">1 Motivation</name>
+        <documentation xml:lang="en">Why the application exists: stakeholders, the driver, goals, and the principles, requirements and constraints that shape the design.</documentation>
+        <node identifier="id-v-motivation-stk-clin" elementRef="id-stk-clin" xsi:type="Element" x="202" y="20" w="156" h="62"/>
+        <node identifier="id-v-motivation-stk-owner" elementRef="id-stk-owner" xsi:type="Element" x="384" y="20" w="156" h="62"/>
+        <node identifier="id-v-motivation-stk-it" elementRef="id-stk-it" xsi:type="Element" x="566" y="20" w="156" h="62"/>
+        <node identifier="id-v-motivation-stk-doctor" elementRef="id-stk-doctor" xsi:type="Element" x="748" y="20" w="156" h="62"/>
+        <node identifier="id-v-motivation-drv-load" elementRef="id-drv-load" xsi:type="Element" x="384" y="112" w="156" h="62"/>
+        <node identifier="id-v-motivation-req-scope" elementRef="id-req-scope" xsi:type="Element" x="20" y="204" w="156" h="62"/>
+        <node identifier="id-v-motivation-goal-understand" elementRef="id-goal-understand" xsi:type="Element" x="202" y="204" w="156" h="62"/>
+        <node identifier="id-v-motivation-goal-document" elementRef="id-goal-document" xsi:type="Element" x="384" y="204" w="156" h="62"/>
+        <node identifier="id-v-motivation-goal-demo" elementRef="id-goal-demo" xsi:type="Element" x="566" y="204" w="156" h="62"/>
+        <node identifier="id-v-motivation-req-fallback" elementRef="id-req-fallback" xsi:type="Element" x="748" y="204" w="156" h="62"/>
+        <node identifier="id-v-motivation-con-synth" elementRef="id-con-synth" xsi:type="Element" x="20" y="296" w="156" h="62"/>
+        <node identifier="id-v-motivation-pr-grounded" elementRef="id-pr-grounded" xsi:type="Element" x="202" y="296" w="156" h="62"/>
+        <node identifier="id-v-motivation-pr-human" elementRef="id-pr-human" xsi:type="Element" x="384" y="296" w="156" h="62"/>
+        <node identifier="id-v-motivation-pr-app-fhir" elementRef="id-pr-app-fhir" xsi:type="Element" x="566" y="296" w="156" h="62"/>
+        <node identifier="id-v-motivation-pr-secrets" elementRef="id-pr-secrets" xsi:type="Element" x="748" y="296" w="156" h="62"/>
+        <node identifier="id-v-motivation-con-optin" elementRef="id-con-optin" xsi:type="Element" x="748" y="388" w="156" h="62"/>
+        <connection identifier="id-v-motivation-c1" relationshipRef="id-rel-1" xsi:type="Relationship" source="id-v-motivation-stk-clin" target="id-v-motivation-drv-load"/>
+        <connection identifier="id-v-motivation-c2" relationshipRef="id-rel-2" xsi:type="Relationship" source="id-v-motivation-stk-owner" target="id-v-motivation-drv-load"/>
+        <connection identifier="id-v-motivation-c3" relationshipRef="id-rel-3" xsi:type="Relationship" source="id-v-motivation-stk-doctor" target="id-v-motivation-goal-document"/>
+        <connection identifier="id-v-motivation-c4" relationshipRef="id-rel-5" xsi:type="Relationship" source="id-v-motivation-drv-load" target="id-v-motivation-goal-understand"/>
+        <connection identifier="id-v-motivation-c5" relationshipRef="id-rel-6" xsi:type="Relationship" source="id-v-motivation-drv-load" target="id-v-motivation-goal-document"/>
+        <connection identifier="id-v-motivation-c6" relationshipRef="id-rel-7" xsi:type="Relationship" source="id-v-motivation-pr-grounded" target="id-v-motivation-goal-understand"/>
+        <connection identifier="id-v-motivation-c7" relationshipRef="id-rel-8" xsi:type="Relationship" source="id-v-motivation-pr-human" target="id-v-motivation-goal-document"/>
+        <connection identifier="id-v-motivation-c8" relationshipRef="id-rel-9" xsi:type="Relationship" source="id-v-motivation-pr-app-fhir" target="id-v-motivation-goal-document"/>
+        <connection identifier="id-v-motivation-c9" relationshipRef="id-rel-10" xsi:type="Relationship" source="id-v-motivation-pr-secrets" target="id-v-motivation-goal-demo"/>
+        <connection identifier="id-v-motivation-c10" relationshipRef="id-rel-11" xsi:type="Relationship" source="id-v-motivation-req-scope" target="id-v-motivation-goal-understand"/>
+        <connection identifier="id-v-motivation-c11" relationshipRef="id-rel-12" xsi:type="Relationship" source="id-v-motivation-req-fallback" target="id-v-motivation-goal-demo"/>
+        <connection identifier="id-v-motivation-c12" relationshipRef="id-rel-13" xsi:type="Relationship" source="id-v-motivation-con-synth" target="id-v-motivation-req-scope"/>
+        <connection identifier="id-v-motivation-c13" relationshipRef="id-rel-14" xsi:type="Relationship" source="id-v-motivation-con-optin" target="id-v-motivation-pr-secrets"/>
+      </view>
+      <view identifier="id-v-business">
+        <name xml:lang="en">2 Business usage</name>
+        <documentation xml:lang="en">How a clinician uses the application: the role, the four processes, the business services they realize, and the application services and views that support them.</documentation>
+        <node identifier="id-v-business-ba-clin" elementRef="id-ba-clin" xsi:type="Element" x="293" y="20" w="156" h="62"/>
+        <node identifier="id-v-business-br-clin" elementRef="id-br-clin" xsi:type="Element" x="293" y="112" w="156" h="62"/>
+        <node identifier="id-v-business-bs-info" elementRef="id-bs-info" xsi:type="Element" x="20" y="112" w="156" h="62"/>
+        <node identifier="id-v-business-bs-doc" elementRef="id-bs-doc" xsi:type="Element" x="566" y="112" w="156" h="62"/>
+        <node identifier="id-v-business-bp-ask" elementRef="id-bp-ask" xsi:type="Element" x="20" y="222" w="156" h="62"/>
+        <node identifier="id-v-business-bp-record" elementRef="id-bp-record" xsi:type="Element" x="202" y="222" w="156" h="62"/>
+        <node identifier="id-v-business-bp-review" elementRef="id-bp-review" xsi:type="Element" x="384" y="222" w="156" h="62"/>
+        <node identifier="id-v-business-bp-save" elementRef="id-bp-save" xsi:type="Element" x="566" y="222" w="156" h="62"/>
+        <node identifier="id-v-business-as-ask" elementRef="id-as-ask" xsi:type="Element" x="20" y="333" w="156" h="62"/>
+        <node identifier="id-v-business-as-struct" elementRef="id-as-struct" xsi:type="Element" x="202" y="333" w="156" h="62"/>
+        <node identifier="id-v-business-ac-recordview" elementRef="id-ac-recordview" xsi:type="Element" x="384" y="333" w="156" h="62"/>
+        <node identifier="id-v-business-as-save" elementRef="id-as-save" xsi:type="Element" x="566" y="333" w="156" h="62"/>
+        <connection identifier="id-v-business-c1" relationshipRef="id-rel-15" xsi:type="Relationship" source="id-v-business-ba-clin" target="id-v-business-br-clin"/>
+        <connection identifier="id-v-business-c2" relationshipRef="id-rel-16" xsi:type="Relationship" source="id-v-business-br-clin" target="id-v-business-bp-ask"/>
+        <connection identifier="id-v-business-c3" relationshipRef="id-rel-17" xsi:type="Relationship" source="id-v-business-br-clin" target="id-v-business-bp-record"/>
+        <connection identifier="id-v-business-c4" relationshipRef="id-rel-18" xsi:type="Relationship" source="id-v-business-br-clin" target="id-v-business-bp-review"/>
+        <connection identifier="id-v-business-c5" relationshipRef="id-rel-19" xsi:type="Relationship" source="id-v-business-br-clin" target="id-v-business-bp-save"/>
+        <connection identifier="id-v-business-c6" relationshipRef="id-rel-20" xsi:type="Relationship" source="id-v-business-bp-record" target="id-v-business-bp-review"/>
+        <connection identifier="id-v-business-c7" relationshipRef="id-rel-21" xsi:type="Relationship" source="id-v-business-bp-review" target="id-v-business-bp-save"/>
+        <connection identifier="id-v-business-c8" relationshipRef="id-rel-22" xsi:type="Relationship" source="id-v-business-bp-ask" target="id-v-business-bs-info"/>
+        <connection identifier="id-v-business-c9" relationshipRef="id-rel-23" xsi:type="Relationship" source="id-v-business-bp-record" target="id-v-business-bs-doc"/>
+        <connection identifier="id-v-business-c10" relationshipRef="id-rel-24" xsi:type="Relationship" source="id-v-business-bs-info" target="id-v-business-br-clin"/>
+        <connection identifier="id-v-business-c11" relationshipRef="id-rel-25" xsi:type="Relationship" source="id-v-business-bs-doc" target="id-v-business-br-clin"/>
+        <connection identifier="id-v-business-c12" relationshipRef="id-rel-32" xsi:type="Relationship" source="id-v-business-as-ask" target="id-v-business-bp-ask"/>
+        <connection identifier="id-v-business-c13" relationshipRef="id-rel-33" xsi:type="Relationship" source="id-v-business-as-struct" target="id-v-business-bp-record"/>
+        <connection identifier="id-v-business-c14" relationshipRef="id-rel-35" xsi:type="Relationship" source="id-v-business-ac-recordview" target="id-v-business-bp-review"/>
+        <connection identifier="id-v-business-c15" relationshipRef="id-rel-34" xsi:type="Relationship" source="id-v-business-as-save" target="id-v-business-bp-save"/>
+      </view>
+      <view identifier="id-v-app-structure">
+        <name xml:lang="en">3 Application structure</name>
+        <documentation xml:lang="en">Decomposition of the application: the web UI, the server-side modules with the source files they are built from, and the development tooling. Composition is shown by nesting.</documentation>
+        <node identifier="id-v-app-structure-ac-web" elementRef="id-ac-web" xsi:type="Element" x="20" y="20" w="184" h="278">
+          <node identifier="id-v-app-structure-ac-workspace" elementRef="id-ac-workspace" xsi:type="Element" x="14" y="50" w="156" h="62"/>
+          <node identifier="id-v-app-structure-ac-askview" elementRef="id-ac-askview" xsi:type="Element" x="14" y="126" w="156" h="62"/>
+          <node identifier="id-v-app-structure-ac-recordview" elementRef="id-ac-recordview" xsi:type="Element" x="14" y="202" w="156" h="62"/>
+        </node>
+        <node identifier="id-v-app-structure-ac-server" elementRef="id-ac-server" xsi:type="Element" x="266" y="20" w="694" h="354">
+          <node identifier="id-v-app-structure-ac-api" elementRef="id-ac-api" xsi:type="Element" x="14" y="50" w="156" h="62"/>
+          <node identifier="id-v-app-structure-ac-qa" elementRef="id-ac-qa" xsi:type="Element" x="184" y="50" w="156" h="62"/>
+          <node identifier="id-v-app-structure-ac-interp" elementRef="id-ac-interp" xsi:type="Element" x="354" y="50" w="156" h="62"/>
+          <node identifier="id-v-app-structure-ac-struct" elementRef="id-ac-struct" xsi:type="Element" x="524" y="50" w="156" h="62"/>
+          <node identifier="id-v-app-structure-ac-review" elementRef="id-ac-review" xsi:type="Element" x="14" y="126" w="156" h="62"/>
+          <node identifier="id-v-app-structure-ac-save" elementRef="id-ac-save" xsi:type="Element" x="184" y="126" w="156" h="62"/>
+          <node identifier="id-v-app-structure-ac-build" elementRef="id-ac-build" xsi:type="Element" x="354" y="126" w="156" h="62"/>
+          <node identifier="id-v-app-structure-ac-ehr" elementRef="id-ac-ehr" xsi:type="Element" x="524" y="126" w="156" h="62"/>
+          <node identifier="id-v-app-structure-ac-sources" elementRef="id-ac-sources" xsi:type="Element" x="14" y="202" w="156" h="62"/>
+          <node identifier="id-v-app-structure-ac-auth" elementRef="id-ac-auth" xsi:type="Element" x="184" y="202" w="156" h="62"/>
+          <node identifier="id-v-app-structure-ac-lang" elementRef="id-ac-lang" xsi:type="Element" x="354" y="202" w="156" h="62"/>
+          <node identifier="id-v-app-structure-ac-jev" elementRef="id-ac-jev" xsi:type="Element" x="524" y="202" w="156" h="62"/>
+          <node identifier="id-v-app-structure-ac-seed" elementRef="id-ac-seed" xsi:type="Element" x="14" y="278" w="156" h="62"/>
+          <node identifier="id-v-app-structure-ac-stt" elementRef="id-ac-stt" xsi:type="Element" x="184" y="278" w="156" h="62"/>
+          <node identifier="id-v-app-structure-ac-conf" elementRef="id-ac-conf" xsi:type="Element" x="354" y="278" w="156" h="62"/>
+        </node>
+        <node identifier="id-v-app-structure-ac-eval" elementRef="id-ac-eval" xsi:type="Element" x="266" y="406" w="156" h="62"/>
+        <node identifier="id-v-app-structure-ac-tests" elementRef="id-ac-tests" xsi:type="Element" x="448" y="406" w="156" h="62"/>
+      </view>
+      <view identifier="id-v-app-coop">
+        <name xml:lang="en">4 Application cooperation</name>
+        <documentation xml:lang="en">Main information flows between the application components, and the external technology services they depend on (Jev, HAPI and Epic). Flows involving the configuration module are left out for readability; see the appendix.</documentation>
+        <node identifier="id-v-app-coop-ac-web" elementRef="id-ac-web" xsi:type="Element" x="20" y="250" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ac-api" elementRef="id-ac-api" xsi:type="Element" x="202" y="250" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ac-qa" elementRef="id-ac-qa" xsi:type="Element" x="384" y="66" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ac-struct" elementRef="id-ac-struct" xsi:type="Element" x="384" y="204" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ac-save" elementRef="id-ac-save" xsi:type="Element" x="384" y="342" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ac-seed" elementRef="id-ac-seed" xsi:type="Element" x="384" y="462" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ac-stt" elementRef="id-ac-stt" xsi:type="Element" x="202" y="572" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ac-lang" elementRef="id-ac-lang" xsi:type="Element" x="566" y="66" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ac-interp" elementRef="id-ac-interp" xsi:type="Element" x="748" y="66" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ac-jev" elementRef="id-ac-jev" xsi:type="Element" x="748" y="186" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ts-jev" elementRef="id-ts-jev" xsi:type="Element" x="930" y="186" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ac-review" elementRef="id-ac-review" xsi:type="Element" x="566" y="278" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ac-ehr" elementRef="id-ac-ehr" xsi:type="Element" x="566" y="434" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ac-build" elementRef="id-ac-build" xsi:type="Element" x="748" y="333" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ts-fhir" elementRef="id-ts-fhir" xsi:type="Element" x="748" y="452" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ai-rest" elementRef="id-ai-rest" xsi:type="Element" x="56" y="388" w="156" h="62"/>
+        <node identifier="id-v-app-coop-as-ehr" elementRef="id-as-ehr" xsi:type="Element" x="566" y="563" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ac-sources" elementRef="id-ac-sources" xsi:type="Element" x="202" y="66" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ac-auth" elementRef="id-ac-auth" xsi:type="Element" x="20" y="112" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ts-epic-fhir" elementRef="id-ts-epic-fhir" xsi:type="Element" x="748" y="563" w="156" h="62"/>
+        <node identifier="id-v-app-coop-ts-epic-oauth" elementRef="id-ts-epic-oauth" xsi:type="Element" x="20" y="20" w="156" h="62"/>
+        <connection identifier="id-v-app-coop-c1" relationshipRef="id-rel-64" xsi:type="Relationship" source="id-v-app-coop-ac-web" target="id-v-app-coop-ac-api"/>
+        <connection identifier="id-v-app-coop-c2" relationshipRef="id-rel-65" xsi:type="Relationship" source="id-v-app-coop-ac-api" target="id-v-app-coop-ac-qa"/>
+        <connection identifier="id-v-app-coop-c3" relationshipRef="id-rel-66" xsi:type="Relationship" source="id-v-app-coop-ac-api" target="id-v-app-coop-ac-struct"/>
+        <connection identifier="id-v-app-coop-c4" relationshipRef="id-rel-67" xsi:type="Relationship" source="id-v-app-coop-ac-api" target="id-v-app-coop-ac-save"/>
+        <connection identifier="id-v-app-coop-c5" relationshipRef="id-rel-68" xsi:type="Relationship" source="id-v-app-coop-ac-api" target="id-v-app-coop-ac-seed"/>
+        <connection identifier="id-v-app-coop-c6" relationshipRef="id-rel-69" xsi:type="Relationship" source="id-v-app-coop-ac-api" target="id-v-app-coop-ac-stt"/>
+        <connection identifier="id-v-app-coop-c7" relationshipRef="id-rel-71" xsi:type="Relationship" source="id-v-app-coop-ac-qa" target="id-v-app-coop-ac-lang"/>
+        <connection identifier="id-v-app-coop-c8" relationshipRef="id-rel-72" xsi:type="Relationship" source="id-v-app-coop-ac-lang" target="id-v-app-coop-ac-interp"/>
+        <connection identifier="id-v-app-coop-c9" relationshipRef="id-rel-73" xsi:type="Relationship" source="id-v-app-coop-ac-lang" target="id-v-app-coop-ac-struct"/>
+        <connection identifier="id-v-app-coop-c10" relationshipRef="id-rel-74" xsi:type="Relationship" source="id-v-app-coop-ac-interp" target="id-v-app-coop-ac-jev"/>
+        <connection identifier="id-v-app-coop-c11" relationshipRef="id-rel-75" xsi:type="Relationship" source="id-v-app-coop-ac-struct" target="id-v-app-coop-ac-jev"/>
+        <connection identifier="id-v-app-coop-c12" relationshipRef="id-rel-78" xsi:type="Relationship" source="id-v-app-coop-ac-struct" target="id-v-app-coop-ac-review"/>
+        <connection identifier="id-v-app-coop-c13" relationshipRef="id-rel-79" xsi:type="Relationship" source="id-v-app-coop-ac-save" target="id-v-app-coop-ac-review"/>
+        <connection identifier="id-v-app-coop-c14" relationshipRef="id-rel-80" xsi:type="Relationship" source="id-v-app-coop-ac-save" target="id-v-app-coop-ac-ehr"/>
+        <connection identifier="id-v-app-coop-c15" relationshipRef="id-rel-82" xsi:type="Relationship" source="id-v-app-coop-ac-seed" target="id-v-app-coop-ac-ehr"/>
+        <connection identifier="id-v-app-coop-c16" relationshipRef="id-rel-83" xsi:type="Relationship" source="id-v-app-coop-ac-ehr" target="id-v-app-coop-ac-build"/>
+        <connection identifier="id-v-app-coop-c17" relationshipRef="id-rel-123" xsi:type="Relationship" source="id-v-app-coop-ts-jev" target="id-v-app-coop-ac-jev"/>
+        <connection identifier="id-v-app-coop-c18" relationshipRef="id-rel-122" xsi:type="Relationship" source="id-v-app-coop-ts-fhir" target="id-v-app-coop-ac-ehr"/>
+        <connection identifier="id-v-app-coop-c19" relationshipRef="id-rel-63" xsi:type="Relationship" source="id-v-app-coop-ai-rest" target="id-v-app-coop-ac-web"/>
+        <connection identifier="id-v-app-coop-c20" relationshipRef="id-rel-62" xsi:type="Relationship" source="id-v-app-coop-ac-api" target="id-v-app-coop-ai-rest"/>
+        <connection identifier="id-v-app-coop-c21" relationshipRef="id-rel-90" xsi:type="Relationship" source="id-v-app-coop-ac-ehr" target="id-v-app-coop-as-ehr"/>
+        <connection identifier="id-v-app-coop-c22" relationshipRef="id-rel-55" xsi:type="Relationship" source="id-v-app-coop-ac-api" target="id-v-app-coop-ac-sources"/>
+        <connection identifier="id-v-app-coop-c23" relationshipRef="id-rel-56" xsi:type="Relationship" source="id-v-app-coop-ac-api" target="id-v-app-coop-ac-auth"/>
+        <connection identifier="id-v-app-coop-c24" relationshipRef="id-rel-126" xsi:type="Relationship" source="id-v-app-coop-ts-epic-fhir" target="id-v-app-coop-ac-ehr"/>
+        <connection identifier="id-v-app-coop-c25" relationshipRef="id-rel-127" xsi:type="Relationship" source="id-v-app-coop-ts-epic-oauth" target="id-v-app-coop-ac-auth"/>
+      </view>
+      <view identifier="id-v-information">
+        <name xml:lang="en">5 Information</name>
+        <documentation xml:lang="en">Which components read and write which information objects, and how the data objects realize the business objects. Question answering also reads the FHIR resources (read access not drawn here; see the appendix). The FHIR resources are the only data persisted outside the application.</documentation>
+        <node identifier="id-v-information-ac-qa" elementRef="id-ac-qa" xsi:type="Element" x="20" y="66" w="156" h="62"/>
+        <node identifier="id-v-information-ac-struct" elementRef="id-ac-struct" xsi:type="Element" x="20" y="259" w="156" h="62"/>
+        <node identifier="id-v-information-ac-review" elementRef="id-ac-review" xsi:type="Element" x="20" y="370" w="156" h="62"/>
+        <node identifier="id-v-information-ac-save" elementRef="id-ac-save" xsi:type="Element" x="20" y="517" w="156" h="62"/>
+        <node identifier="id-v-information-ac-seed" elementRef="id-ac-seed" xsi:type="Element" x="20" y="664" w="156" h="62"/>
+        <node identifier="id-v-information-ac-eval" elementRef="id-ac-eval" xsi:type="Element" x="20" y="756" w="156" h="62"/>
+        <node identifier="id-v-information-do-need" elementRef="id-do-need" xsi:type="Element" x="384" y="20" w="156" h="62"/>
+        <node identifier="id-v-information-do-fact" elementRef="id-do-fact" xsi:type="Element" x="384" y="112" w="156" h="62"/>
+        <node identifier="id-v-information-do-transcript" elementRef="id-do-transcript" xsi:type="Element" x="384" y="204" w="156" h="62"/>
+        <node identifier="id-v-information-do-proposal" elementRef="id-do-proposal" xsi:type="Element" x="384" y="296" w="156" h="62"/>
+        <node identifier="id-v-information-do-note" elementRef="id-do-note" xsi:type="Element" x="384" y="388" w="156" h="62"/>
+        <node identifier="id-v-information-do-bundle" elementRef="id-do-bundle" xsi:type="Element" x="384" y="480" w="156" h="62"/>
+        <node identifier="id-v-information-do-fhir" elementRef="id-do-fhir" xsi:type="Element" x="384" y="572" w="156" h="62"/>
+        <node identifier="id-v-information-do-fixtures" elementRef="id-do-fixtures" xsi:type="Element" x="384" y="664" w="156" h="62"/>
+        <node identifier="id-v-information-do-gold" elementRef="id-do-gold" xsi:type="Element" x="384" y="756" w="156" h="62"/>
+        <node identifier="id-v-information-bo-note" elementRef="id-bo-note" xsi:type="Element" x="566" y="388" w="156" h="62"/>
+        <node identifier="id-v-information-bo-record" elementRef="id-bo-record" xsi:type="Element" x="566" y="572" w="156" h="62"/>
+        <connection identifier="id-v-information-c1" relationshipRef="id-rel-94" xsi:type="Relationship" source="id-v-information-ac-qa" target="id-v-information-do-need"/>
+        <connection identifier="id-v-information-c2" relationshipRef="id-rel-95" xsi:type="Relationship" source="id-v-information-ac-qa" target="id-v-information-do-fact"/>
+        <connection identifier="id-v-information-c3" relationshipRef="id-rel-97" xsi:type="Relationship" source="id-v-information-ac-struct" target="id-v-information-do-transcript"/>
+        <connection identifier="id-v-information-c4" relationshipRef="id-rel-98" xsi:type="Relationship" source="id-v-information-ac-struct" target="id-v-information-do-proposal"/>
+        <connection identifier="id-v-information-c5" relationshipRef="id-rel-99" xsi:type="Relationship" source="id-v-information-ac-struct" target="id-v-information-do-note"/>
+        <connection identifier="id-v-information-c6" relationshipRef="id-rel-100" xsi:type="Relationship" source="id-v-information-ac-review" target="id-v-information-do-proposal"/>
+        <connection identifier="id-v-information-c7" relationshipRef="id-rel-101" xsi:type="Relationship" source="id-v-information-ac-save" target="id-v-information-do-proposal"/>
+        <connection identifier="id-v-information-c8" relationshipRef="id-rel-102" xsi:type="Relationship" source="id-v-information-ac-save" target="id-v-information-do-bundle"/>
+        <connection identifier="id-v-information-c9" relationshipRef="id-rel-103" xsi:type="Relationship" source="id-v-information-ac-save" target="id-v-information-do-fhir"/>
+        <connection identifier="id-v-information-c10" relationshipRef="id-rel-104" xsi:type="Relationship" source="id-v-information-ac-seed" target="id-v-information-do-fixtures"/>
+        <connection identifier="id-v-information-c11" relationshipRef="id-rel-105" xsi:type="Relationship" source="id-v-information-ac-seed" target="id-v-information-do-fhir"/>
+        <connection identifier="id-v-information-c12" relationshipRef="id-rel-106" xsi:type="Relationship" source="id-v-information-ac-eval" target="id-v-information-do-gold"/>
+        <connection identifier="id-v-information-c13" relationshipRef="id-rel-30" xsi:type="Relationship" source="id-v-information-do-note" target="id-v-information-bo-note"/>
+        <connection identifier="id-v-information-c14" relationshipRef="id-rel-31" xsi:type="Relationship" source="id-v-information-do-fhir" target="id-v-information-bo-record"/>
+      </view>
+      <view identifier="id-v-technology">
+        <name xml:lang="en">6 Technology and deployment</name>
+        <documentation xml:lang="en">Where the application runs and what it talks to. Planned and parked elements are drawn dashed. Node-to-node flows (browser to Vercel to HAPI and Typesafe) are in the model but not drawn here.</documentation>
+        <node identifier="id-v-technology-tn-browser" elementRef="id-tn-browser" xsi:type="Element" x="20" y="20" w="184" h="278">
+          <node identifier="id-v-technology-ss-media" elementRef="id-ss-media" xsi:type="Element" x="14" y="50" w="156" h="62"/>
+          <node identifier="id-v-technology-art-client" elementRef="id-art-client" xsi:type="Element" x="14" y="126" w="156" h="62"/>
+          <node identifier="id-v-technology-art-cookie" elementRef="id-art-cookie" xsi:type="Element" x="14" y="202" w="156" h="62"/>
+        </node>
+        <node identifier="id-v-technology-tn-epic" elementRef="id-tn-epic" xsi:type="Element" x="147" y="664" w="184" h="202">
+          <node identifier="id-v-technology-ts-epic-fhir" elementRef="id-ts-epic-fhir" xsi:type="Element" x="14" y="50" w="156" h="62"/>
+          <node identifier="id-v-technology-ts-epic-oauth" elementRef="id-ts-epic-oauth" xsi:type="Element" x="14" y="126" w="156" h="62"/>
+        </node>
+        <node identifier="id-v-technology-tn-vercel" elementRef="id-tn-vercel" xsi:type="Element" x="275" y="20" w="184" h="278">
+          <node identifier="id-v-technology-ss-nextrun" elementRef="id-ss-nextrun" xsi:type="Element" x="14" y="50" w="156" h="62"/>
+          <node identifier="id-v-technology-art-server" elementRef="id-art-server" xsi:type="Element" x="14" y="126" w="156" h="62"/>
+          <node identifier="id-v-technology-art-config" elementRef="id-art-config" xsi:type="Element" x="14" y="202" w="156" h="62"/>
+        </node>
+        <node identifier="id-v-technology-tn-azure" elementRef="id-tn-azure" xsi:type="Element" x="602" y="20" w="156" h="62"/>
+        <node identifier="id-v-technology-net-internet" elementRef="id-net-internet" xsi:type="Element" x="147" y="324" w="837" h="40"/>
+        <node identifier="id-v-technology-tn-hapi" elementRef="id-tn-hapi" xsi:type="Element" x="20" y="443" w="184" h="126">
+          <node identifier="id-v-technology-ts-fhir" elementRef="id-ts-fhir" xsi:type="Element" x="14" y="50" w="156" h="62"/>
+        </node>
+        <node identifier="id-v-technology-tn-typesafe" elementRef="id-tn-typesafe" xsi:type="Element" x="275" y="443" w="184" h="126">
+          <node identifier="id-v-technology-ts-jev" elementRef="id-ts-jev" xsi:type="Element" x="14" y="50" w="156" h="62"/>
+        </node>
+        <node identifier="id-v-technology-tn-icd" elementRef="id-tn-icd" xsi:type="Element" x="530" y="443" w="184" h="126">
+          <node identifier="id-v-technology-ts-icd" elementRef="id-ts-icd" xsi:type="Element" x="14" y="50" w="156" h="62"/>
+        </node>
+        <node identifier="id-v-technology-tn-dev" elementRef="id-tn-dev" xsi:type="Element" x="784" y="443" w="184" h="202">
+          <node identifier="id-v-technology-ss-bun" elementRef="id-ss-bun" xsi:type="Element" x="14" y="50" w="156" h="62"/>
+          <node identifier="id-v-technology-ss-next" elementRef="id-ss-next" xsi:type="Element" x="14" y="126" w="156" h="62"/>
+        </node>
+        <connection identifier="id-v-technology-c1" relationshipRef="id-rel-134" xsi:type="Relationship" source="id-v-technology-net-internet" target="id-v-technology-tn-browser"/>
+        <connection identifier="id-v-technology-c2" relationshipRef="id-rel-135" xsi:type="Relationship" source="id-v-technology-net-internet" target="id-v-technology-tn-vercel"/>
+        <connection identifier="id-v-technology-c3" relationshipRef="id-rel-136" xsi:type="Relationship" source="id-v-technology-net-internet" target="id-v-technology-tn-azure"/>
+        <connection identifier="id-v-technology-c4" relationshipRef="id-rel-137" xsi:type="Relationship" source="id-v-technology-net-internet" target="id-v-technology-tn-hapi"/>
+        <connection identifier="id-v-technology-c5" relationshipRef="id-rel-138" xsi:type="Relationship" source="id-v-technology-net-internet" target="id-v-technology-tn-typesafe"/>
+        <connection identifier="id-v-technology-c6" relationshipRef="id-rel-130" xsi:type="Relationship" source="id-v-technology-net-internet" target="id-v-technology-tn-epic"/>
+        <connection identifier="id-v-technology-c7" relationshipRef="id-rel-114" xsi:type="Relationship" source="id-v-technology-tn-azure" target="id-v-technology-art-server"/>
+      </view>
+      <view identifier="id-v-roadmap">
+        <name xml:lang="en">7 Implementation and migration</name>
+        <documentation xml:lang="en">What has been delivered, and what is planned or parked on the way from the Vercel demo to an Azure-hosted demo. Nothing here is committed scope.</documentation>
+        <node identifier="id-v-roadmap-wp-core" elementRef="id-wp-core" xsi:type="Element" x="20" y="20" w="156" h="62"/>
+        <node identifier="id-v-roadmap-wp-jev-q" elementRef="id-wp-jev-q" xsi:type="Element" x="202" y="20" w="156" h="62"/>
+        <node identifier="id-v-roadmap-wp-jev-s" elementRef="id-wp-jev-s" xsi:type="Element" x="384" y="20" w="156" h="62"/>
+        <node identifier="id-v-roadmap-wp-guard" elementRef="id-wp-guard" xsi:type="Element" x="566" y="20" w="156" h="62"/>
+        <node identifier="id-v-roadmap-pl-demo" elementRef="id-pl-demo" xsi:type="Element" x="238" y="176" w="156" h="62"/>
+        <node identifier="id-v-roadmap-pl-azure" elementRef="id-pl-azure" xsi:type="Element" x="566" y="176" w="156" h="62"/>
+        <node identifier="id-v-roadmap-wp-epic" elementRef="id-wp-epic" xsi:type="Element" x="20" y="176" w="156" h="62"/>
+        <node identifier="id-v-roadmap-wp-epic-q" elementRef="id-wp-epic-q" xsi:type="Element" x="20" y="480" w="156" h="62"/>
+        <node identifier="id-v-roadmap-wp-epic-cloud" elementRef="id-wp-epic-cloud" xsi:type="Element" x="202" y="480" w="156" h="62"/>
+        <node identifier="id-v-roadmap-wp-heldout" elementRef="id-wp-heldout" xsi:type="Element" x="20" y="333" w="156" h="62"/>
+        <node identifier="id-v-roadmap-wp-qa" elementRef="id-wp-qa" xsi:type="Element" x="202" y="333" w="156" h="62"/>
+        <node identifier="id-v-roadmap-wp-progress" elementRef="id-wp-progress" xsi:type="Element" x="384" y="333" w="156" h="62"/>
+        <node identifier="id-v-roadmap-wp-azure" elementRef="id-wp-azure" xsi:type="Element" x="566" y="333" w="156" h="62"/>
+        <node identifier="id-v-roadmap-wp-icd" elementRef="id-wp-icd" xsi:type="Element" x="748" y="333" w="156" h="62"/>
+        <connection identifier="id-v-roadmap-c1" relationshipRef="id-rel-140" xsi:type="Relationship" source="id-v-roadmap-wp-core" target="id-v-roadmap-wp-jev-q"/>
+        <connection identifier="id-v-roadmap-c2" relationshipRef="id-rel-141" xsi:type="Relationship" source="id-v-roadmap-wp-jev-q" target="id-v-roadmap-wp-jev-s"/>
+        <connection identifier="id-v-roadmap-c3" relationshipRef="id-rel-152" xsi:type="Relationship" source="id-v-roadmap-wp-epic" target="id-v-roadmap-pl-demo"/>
+        <connection identifier="id-v-roadmap-c4" relationshipRef="id-rel-142" xsi:type="Relationship" source="id-v-roadmap-wp-core" target="id-v-roadmap-pl-demo"/>
+        <connection identifier="id-v-roadmap-c5" relationshipRef="id-rel-143" xsi:type="Relationship" source="id-v-roadmap-wp-jev-q" target="id-v-roadmap-pl-demo"/>
+        <connection identifier="id-v-roadmap-c6" relationshipRef="id-rel-144" xsi:type="Relationship" source="id-v-roadmap-wp-jev-s" target="id-v-roadmap-pl-demo"/>
+        <connection identifier="id-v-roadmap-c7" relationshipRef="id-rel-145" xsi:type="Relationship" source="id-v-roadmap-wp-guard" target="id-v-roadmap-pl-demo"/>
+        <connection identifier="id-v-roadmap-c8" relationshipRef="id-rel-151" xsi:type="Relationship" source="id-v-roadmap-pl-demo" target="id-v-roadmap-pl-azure"/>
+        <connection identifier="id-v-roadmap-c9" relationshipRef="id-rel-146" xsi:type="Relationship" source="id-v-roadmap-wp-heldout" target="id-v-roadmap-pl-azure"/>
+        <connection identifier="id-v-roadmap-c10" relationshipRef="id-rel-147" xsi:type="Relationship" source="id-v-roadmap-wp-qa" target="id-v-roadmap-pl-azure"/>
+        <connection identifier="id-v-roadmap-c11" relationshipRef="id-rel-148" xsi:type="Relationship" source="id-v-roadmap-wp-progress" target="id-v-roadmap-pl-azure"/>
+        <connection identifier="id-v-roadmap-c12" relationshipRef="id-rel-149" xsi:type="Relationship" source="id-v-roadmap-wp-azure" target="id-v-roadmap-pl-azure"/>
+        <connection identifier="id-v-roadmap-c13" relationshipRef="id-rel-150" xsi:type="Relationship" source="id-v-roadmap-wp-icd" target="id-v-roadmap-pl-azure"/>
+      </view>
+    </diagrams>
+  </views>
+</model>

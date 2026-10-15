@@ -62,6 +62,8 @@ Kaikilla resursseilla on demotunniste (`meta.tag` `urn:super-ambient:demo|synthe
 
 ## Arkkitehtuuri
 
+> **Alustava ArchiMate-kuvaus:** `docs/architecture/super_ambient-architecture.pdf` (selostus) ja `docs/architecture/super_ambient-architecture.xml` (Open Group Exchange -malli, avattavissa esim. Archilla). Ne generoidaan tiedostosta `scripts/architecture/model.ts` komennolla `bun run architecture:build`; kuvaus on alustava eikä ole katselmoitu.
+
 ```
 app/api/*            Route handlerit (palvelinpuoli: FHIR-yhteys ja avaimet pysyvät täällä)
 app/api/auth/[source]/  SMART-kirjautuminen: login, callback, logout
