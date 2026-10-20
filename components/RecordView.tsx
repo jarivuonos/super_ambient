@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
+import { isEffectivelySilent, meterLevel, QUIET_AFTER_MS, rmsOf, toDb } from "@/lib/audio/level";
 import {
   CONDITION_VERIFICATION,
   NOTE_SECTION_LABELS,
@@ -57,11 +58,46 @@ function Recorder({ transcriptionConfigured, transcriptionText, onTranscript, gu
   const blobRef = useRef<Blob | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  // Tasomittari: Web Audio -analysaattori lukee samaa virtaa kuin tallennin; ääntä ei toisteta eikä lähetetä.
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const meterTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const peakDbRef = useRef(-Infinity);
+  const [level, setLevel] = useState(0);
+  const [peakDb, setPeakDb] = useState<number | null>(null);
+  const [quiet, setQuiet] = useState(false);
+
+  function stopMeter() {
+    if (meterTimerRef.current) clearInterval(meterTimerRef.current);
+    meterTimerRef.current = null;
+    void audioCtxRef.current?.close();
+    audioCtxRef.current = null;
+  }
+
+  function startMeter(stream: MediaStream, t0: number) {
+    if (typeof AudioContext === "undefined") return; // mittari on lisä; äänitys toimii ilman sitä
+    const ctx = new AudioContext();
+    void ctx.resume();
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 1024;
+    ctx.createMediaStreamSource(stream).connect(analyser);
+    const buf = new Float32Array(analyser.fftSize);
+    audioCtxRef.current = ctx;
+    peakDbRef.current = -Infinity;
+    meterTimerRef.current = setInterval(() => {
+      analyser.getFloatTimeDomainData(buf);
+      const db = toDb(rmsOf(buf));
+      peakDbRef.current = Math.max(peakDbRef.current, db);
+      setLevel(meterLevel(db));
+      setQuiet(Date.now() - t0 > QUIET_AFTER_MS && isEffectivelySilent(peakDbRef.current));
+    }, 80);
+  }
 
   useEffect(
     () => () => {
       // Siivous: äänite ja mikrofoni vapautetaan, kun näkymä poistuu (esim. potilaan vaihto).
       if (timerRef.current) clearInterval(timerRef.current);
+      if (meterTimerRef.current) clearInterval(meterTimerRef.current);
+      void audioCtxRef.current?.close();
       streamRef.current?.getTracks().forEach((t) => t.stop());
       if (recRef.current?.state === "recording") recRef.current.stop();
     },
@@ -91,6 +127,9 @@ function Recorder({ transcriptionConfigured, transcriptionText, onTranscript, gu
       recRef.current = rec;
       rec.start();
       const t0 = Date.now();
+      setPeakDb(null);
+      setQuiet(false);
+      startMeter(stream, t0);
       setElapsed(0);
       timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - t0) / 1000)), 500);
       setState("recording");
@@ -102,6 +141,10 @@ function Recorder({ transcriptionConfigured, transcriptionText, onTranscript, gu
   function stop() {
     recRef.current?.stop();
     if (timerRef.current) clearInterval(timerRef.current);
+    stopMeter();
+    setLevel(0);
+    setQuiet(false);
+    setPeakDb(Number.isFinite(peakDbRef.current) ? peakDbRef.current : null);
     setState("stopped");
   }
 
@@ -109,6 +152,7 @@ function Recorder({ transcriptionConfigured, transcriptionText, onTranscript, gu
     if (url) URL.revokeObjectURL(url);
     setUrl(null);
     blobRef.current = null;
+    setPeakDb(null);
     setElapsed(0);
     setState("idle");
   }
@@ -158,6 +202,24 @@ function Recorder({ transcriptionConfigured, transcriptionText, onTranscript, gu
           </>
         )}
       </div>
+      {state === "recording" && (
+        <div className="mt-2 flex items-center gap-2 text-xs text-zinc-600">
+          <span id="mic-level-label">Mikrofonin taso</span>
+          <div role="meter" aria-labelledby="mic-level-label" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(level * 100)} className="h-2 w-40 overflow-hidden rounded bg-zinc-200">
+            <div className="h-full bg-emerald-600 transition-[width] duration-75" style={{ width: `${Math.round(level * 100)}%` }} />
+          </div>
+        </div>
+      )}
+      {state === "recording" && quiet && (
+        <div className="mt-2" role="status">
+          <ErrorBox tone="warn" title="Mikrofonista ei tule ääntä" message="Taso pysyy lähes nollassa. Tarkista, ettei mikrofoni ole mykistetty tai äänenvoimakkuus nollassa, ja että selain käyttää oikeaa mikrofonia (valinta tehdään selaimen lupaikkunassa; osoiterivin lukkokuvakkeesta lupa voidaan nollata)." />
+        </div>
+      )}
+      {state === "stopped" && peakDb !== null && isEffectivelySilent(peakDb) && (
+        <div className="mt-2" role="status">
+          <ErrorBox tone="warn" title="Äänite on käytännössä hiljainen" message={`Äänityksen voimakkain kohta oli vain ${Math.round(peakDb)} dB täyteen asteikkoon nähden, joten toisto on todennäköisesti hiljainen. Tarkista mikrofonin äänenvoimakkuus ja valittu laite ja äänitä uudelleen.`} />
+        </div>
+      )}
       {url && <audio controls src={url} className="mt-2 w-full" />}
       {!transcriptionConfigured && <p className="mt-2 text-xs text-zinc-600">{transcriptionText} Reaaliaikaista litterointia tai puhujien erottelua ei ole käytössä.</p>}
       <p className="mt-1 text-xs text-zinc-500">Äänite säilyy vain tämän selainistunnon muistissa. Sitä ei lähetetä HAPIin; litterointipalvelulle vain painamalla ”Litteroi äänite”.</p>
