@@ -1,6 +1,7 @@
-// Gemini-litteroinnin asiakas koeajoskriptille (Files API + Interactions API). EI kuulu sovellukseen:
-// sovelluksen palvelin ei tuo tätä, eikä ääntä lähetetä mihinkään ilman `--send`-valitsinta.
-// Ei uusia riippuvuuksia: pelkkä fetch. Avain annetaan ulkopuolelta eikä sitä koskaan tulosteta.
+// Gemini-asiakas (Files API + Interactions API): litterointi ja puhesynteesi. Ei `server-only`-tuontia, jotta sitä voi käyttää
+// myös koeajoskripteissä (scripts/asr) ja testeissä. Sovelluksen palvelin käyttää sitä vain, kun TRANSCRIPTION_PROVIDER=gemini
+// (lib/transcription/gemini-adapter.ts); oletuksena mitään ei lähetetä. Ei uusia riippuvuuksia: pelkkä fetch.
+// Avain annetaan ulkopuolelta eikä sitä koskaan tulosteta tai liitetä virheviesteihin.
 
 export const GEMINI_BASE = "https://generativelanguage.googleapis.com";
 
@@ -67,6 +68,8 @@ export interface GeminiOptions {
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
   maxRetries?: number;
+  /** Käyttäjän peruutus (esim. selaimen pyyntö katkesi): pysäyttää pyynnöt eikä uusi niitä. Tiedoston poisto ei noudata tätä. */
+  signal?: AbortSignal;
   /** Kutsutaan ennen jokaista uusintaa (esim. tulostukseen), jotta pitkä odotus ei ole hiljainen. */
   onRetry?: (info: { status?: number; waitMs: number; attempt: number; maxRetries: number }) => void;
 }
@@ -117,12 +120,16 @@ export class GeminiHttp {
   }
 
   /** Pyyntö uusinnoin: 429 ja 5xx odotetaan ja yritetään uudelleen (Retry-After huomioiden, enintään 60 s). */
-  protected async request(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  protected async request(url: string, init: RequestInit, timeoutMs: number, honorCancel = true): Promise<Response> {
+    const outer = honorCancel ? this.o.signal : undefined;
     for (let attempt = 0; ; attempt++) {
+      if (outer?.aborted) throw new GeminiError("Pyyntö peruttiin.");
       let res: Response;
       try {
-        res = await this.f(url, { ...init, redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(timeoutMs) });
+        const timeout = AbortSignal.timeout(timeoutMs);
+        res = await this.f(url, { ...init, redirect: "manual", cache: "no-store", signal: outer ? AbortSignal.any([timeout, outer]) : timeout });
       } catch (e) {
+        if (outer?.aborted) throw new GeminiError("Pyyntö peruttiin.");
         if (attempt >= this.retries) throw new GeminiError(`Yhteys epäonnistui: ${this.safe((e as Error).message)}`);
         const wait = 2000 * 2 ** attempt;
         this.o.onRetry?.({ waitMs: wait, attempt: attempt + 1, maxRetries: this.retries });
@@ -204,7 +211,8 @@ export class GeminiTranscriber extends GeminiHttp {
   }
 
   async delete(name: string): Promise<void> {
-    await this.request(`${this.base}/v1beta/${name}`, { method: "DELETE", headers: this.headers() }, 30_000);
+    // Poisto tehdään myös peruutuksen jälkeen, jotta ääni ei jää Googlelle 48 tunniksi.
+    await this.request(`${this.base}/v1beta/${name}`, { method: "DELETE", headers: this.headers() }, 30_000, false);
   }
 
   async transcribe(file: { uri: string; mimeType: string }, opt: TranscribeOptions): Promise<AsrResult> {

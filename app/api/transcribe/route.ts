@@ -1,6 +1,9 @@
 import { getTranscription, jsonError, logError } from "@/lib/services";
 import { TranscriptionUnavailable } from "@/lib/transcription/adapter";
 
+// Litterointi voi kestää minuutteja (Gemini ruuhkassa jopa yli 10 min); varataan enimmäisaika, jonka palvelu sallii.
+export const maxDuration = 300;
+
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 
 export async function POST(request: Request) {

@@ -1,7 +1,7 @@
 import "server-only";
 import { sessionFromRequest } from "./auth/session";
 import { createLanguageAdapter, type ClinicalLanguageAdapter } from "./clinical/language-adapter";
-import { getConfig, getJevSettings } from "./config";
+import { getConfig, getJevSettings, getTranscriptionSettings } from "./config";
 import type { CapabilityCheck, CapabilitySummary } from "./fhir/ehr-adapter";
 import { HapiR4Adapter } from "./fhir/hapi-adapter";
 import { DEFAULT_SOURCE_ID, findSource, isWritable, resolveBaseUrl, type EhrSource } from "./fhir/sources";
@@ -48,7 +48,7 @@ export function getLanguage(): ClinicalLanguageAdapter {
 }
 
 export function getTranscription(): TranscriptionAdapter {
-  if (!transcription) transcription = createTranscriptionAdapter(getConfig().transcription);
+  if (!transcription) transcription = createTranscriptionAdapter(getTranscriptionSettings());
   return transcription;
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GeminiError } from "../scripts/asr/gemini";
+import { GeminiError } from "../lib/transcription/gemini-client";
 import { GeminiSpeaker, parseSpeechResponse } from "../scripts/asr/tts";
 import { buildWav, parseWav } from "../scripts/asr/wav";
 

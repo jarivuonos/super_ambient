@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SAMPLE_CONVERSATIONS } from "../lib/clinical/sample-conversations";
-import type { AsrResult } from "../scripts/asr/gemini";
+import type { AsrResult } from "../lib/transcription/gemini-client";
 import { findReference, idFromFileBase, parseReferenceText, referenceText } from "../scripts/asr/references";
 import { labelledHypothesis, scoreTranscript } from "../scripts/asr/score";
 

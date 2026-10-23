@@ -1,4 +1,5 @@
 import type { Transcript } from "../clinical/schemas";
+import { GeminiTranscriptionAdapter } from "./gemini-adapter";
 
 export interface TranscriptionCapabilities {
   /** Koko tallenteen litterointi tallennuksen jälkeen. */
@@ -40,12 +41,27 @@ export class UnconfiguredTranscriptionAdapter implements TranscriptionAdapter {
   }
 }
 
-export function createTranscriptionAdapter(cfg: { provider: string }): TranscriptionAdapter {
+export interface TranscriptionSettings {
+  provider: string;
+  /** Vain palvelinpuolella: avainta ei koskaan lähetetä selaimelle. */
+  geminiApiKey?: string;
+  model?: string;
+}
+
+export const DEFAULT_TRANSCRIPTION_MODEL = "gemini-3.8-flash";
+
+export function createTranscriptionAdapter(cfg: TranscriptionSettings): TranscriptionAdapter {
   if (cfg.provider === "none" || !cfg.provider) {
     return new UnconfiguredTranscriptionAdapter(
       "Ei litterointipalvelua",
       "Litterointipalvelua ei ole asetettu (TRANSCRIPTION_PROVIDER). Kuuntele äänite ja liitä litteraatti käsin.",
     );
+  }
+  if (cfg.provider === "gemini") {
+    if (!cfg.geminiApiKey) {
+      return new UnconfiguredTranscriptionAdapter("Gemini (avain puuttuu)", "TRANSCRIPTION_PROVIDER=gemini, mutta GEMINI_API_KEY puuttuu palvelimen asetuksista. Liitä litteraatti käsin.");
+    }
+    return new GeminiTranscriptionAdapter({ apiKey: cfg.geminiApiKey, model: cfg.model || DEFAULT_TRANSCRIPTION_MODEL });
   }
   // Palvelukohtainen adapteri lisätään vasta todellisen palvelun dokumentaation ja testauksen perusteella.
   return new UnconfiguredTranscriptionAdapter(

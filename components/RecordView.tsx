@@ -54,6 +54,7 @@ function Recorder({ transcriptionConfigured, transcriptionText, onTranscript, gu
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [waited, setWaited] = useState(0);
   const recRef = useRef<MediaRecorder | null>(null);
   const blobRef = useRef<Blob | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -104,6 +105,16 @@ function Recorder({ transcriptionConfigured, transcriptionText, onTranscript, gu
     [],
   );
   useEffect(() => () => void (url && URL.revokeObjectURL(url)), [url]);
+  // Litterointi voi kestää minuutteja: näytetään kulunut aika, jottei se näytä jumiutumiselta.
+  useEffect(() => {
+    if (!busy) return;
+    const t0 = Date.now();
+    const id = setInterval(() => setWaited(Math.floor((Date.now() - t0) / 1000)), 1000);
+    return () => {
+      clearInterval(id);
+      setWaited(0);
+    };
+  }, [busy]);
 
   async function start() {
     setError(null);
@@ -166,8 +177,10 @@ function Recorder({ transcriptionConfigured, transcriptionText, onTranscript, gu
     const res = await guard((signal) => api<{ transcript: Transcript }>("/api/transcribe", { method: "POST", body: form, signal }));
     if (res === null) return;
     setBusy(false);
-    if (!res.ok) setError(res.error.message);
-    else onTranscript(res.data.transcript);
+    if (!res.ok) {
+      // Vercel hylkää yli ~4,5 Mt:n pyynnöt ennen kuin sovellus näkee ne.
+      setError(res.error.status === 413 ? "Äänite on liian suuri tälle palvelimelle (Vercelissä raja on noin 4,5 Mt eli runsaat 4 minuuttia). Äänitä lyhyempi pätkä tai käytä paikallista ajoa." : res.error.message);
+    } else onTranscript(res.data.transcript);
   }
 
   const mm = String(Math.floor(elapsed / 60)).padStart(2, "0");
@@ -194,7 +207,7 @@ function Recorder({ transcriptionConfigured, transcriptionText, onTranscript, gu
         {url && (
           <>
             <Button onClick={() => void transcribe()} disabled={!transcriptionConfigured || busy} title={transcriptionConfigured ? "" : transcriptionText}>
-              {busy ? "Litteroidaan…" : "Litteroi äänite"}
+              {busy ? `Litteroidaan… ${waited} s (voi kestää minuutteja)` : "Litteroi äänite"}
             </Button>
             <Button variant="ghost" onClick={remove}>
               Poista äänite
@@ -222,6 +235,7 @@ function Recorder({ transcriptionConfigured, transcriptionText, onTranscript, gu
       )}
       {url && <audio controls src={url} className="mt-2 w-full" />}
       {!transcriptionConfigured && <p className="mt-2 text-xs text-zinc-600">{transcriptionText} Reaaliaikaista litterointia tai puhujien erottelua ei ole käytössä.</p>}
+      {transcriptionConfigured && <p className="mt-2 text-xs text-amber-800">{transcriptionText}</p>}
       <p className="mt-1 text-xs text-zinc-500">Äänite säilyy vain tämän selainistunnon muistissa. Sitä ei lähetetä HAPIin; litterointipalvelulle vain painamalla ”Litteroi äänite”.</p>
       {error && (
         <div className="mt-2">

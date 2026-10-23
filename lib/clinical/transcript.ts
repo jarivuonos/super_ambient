@@ -25,6 +25,7 @@ export function parsePastedTranscript(text: string, origin: Transcript["origin"]
   let labelled = 0;
   const segments: TranscriptSegment[] = lines.slice(0, 500).map((line, i) => {
     let speaker: Speaker = "tuntematon";
+    let speakerLabel: string | undefined;
     let body = line;
     for (const [re, sp] of SPEAKER_PREFIXES) {
       const m = re.exec(line);
@@ -32,10 +33,13 @@ export function parsePastedTranscript(text: string, origin: Transcript["origin"]
         speaker = sp;
         body = line.slice(m[0].length);
         labelled++;
+        // "Puhuja 2:" säilyttää numeron, jotta eri puhujat erottuvat tekstikentässä.
+        const n = sp === "tuntematon" ? /puhuja\s*(\d+)/i.exec(m[1])?.[1] : undefined;
+        if (n) speakerLabel = `Puhuja ${n}`;
         break;
       }
     }
-    return { id: `s${i + 1}`, speaker, text: body.slice(0, 5000), startMs: null, endMs: null };
+    return { id: `s${i + 1}`, speaker, ...(speakerLabel ? { speakerLabel } : {}), text: body.slice(0, 5000), startMs: null, endMs: null };
   });
   if (segments.length === 0) {
     segments.push({ id: "s1", speaker: "tuntematon", text: "", startMs: null, endMs: null });
@@ -57,7 +61,7 @@ export function transcriptToText(t: Transcript): string {
     tuntematon: "Tuntematon",
   };
   return t.segments
-    .map((s) => (t.speakerSource === "ei tiedossa" && s.speaker === "tuntematon" ? s.text : `${label[s.speaker]}: ${s.text}`))
+    .map((s) => (t.speakerSource === "ei tiedossa" && s.speaker === "tuntematon" ? s.text : `${s.speakerLabel ?? label[s.speaker]}: ${s.text}`))
     .join("\n");
 }
 

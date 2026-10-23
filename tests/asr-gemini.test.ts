@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { engineFor, GeminiError, GeminiTranscriber, parseInteraction, parseSpeakerLines, transcriptionPrompt } from "../scripts/asr/gemini";
+import { engineFor, GeminiError, GeminiTranscriber, parseInteraction, parseSpeakerLines, transcriptionPrompt } from "../lib/transcription/gemini-client";
 
 const KEY = "SECRET-KEY-123";
 const HOST = "https://generativelanguage.googleapis.com";

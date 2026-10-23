@@ -21,7 +21,7 @@ import { SAMPLE_CONVERSATIONS } from "../lib/clinical/sample-conversations";
 import { findReference } from "./asr/references";
 import { mergeSameSpeaker, planSummary, planTurns, parseVoiceMap, splitByCache, turnCacheKey, turnGaps } from "./asr/synth-plan";
 import { DEFAULT_TTS_MODEL, GeminiSpeaker } from "./asr/tts";
-import { GeminiError } from "./asr/gemini";
+import { GeminiError } from "../lib/transcription/gemini-client";
 import { durationSeconds, joinWav } from "./asr/wav";
 
 const args = process.argv.slice(2);

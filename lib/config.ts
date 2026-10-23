@@ -1,4 +1,5 @@
 import "server-only";
+import { DEFAULT_TRANSCRIPTION_MODEL, type TranscriptionSettings } from "./transcription/adapter";
 import { DEFAULT_JEV_MODEL, readJevSettings, readStructuringSettings, type JevSettingsResult } from "./jev-settings";
 
 // Palvelinpuolen asetukset. Avaimet luetaan vain ympäristömuuttujista.
@@ -39,6 +40,15 @@ export function getConfig(): AppConfig {
       endpoint: process.env.TRANSCRIPTION_ENDPOINT || undefined,
       hasApiKey: Boolean(process.env.TRANSCRIPTION_API_KEY),
     },
+  };
+}
+
+/** Litterointipalvelun asetukset (sisältää avaimen) – vain palvelinpuolen käyttöön. Oletus: ei palvelua, jolloin mitään ei lähetetä. */
+export function getTranscriptionSettings(): TranscriptionSettings {
+  return {
+    provider: (process.env.TRANSCRIPTION_PROVIDER ?? "none").trim().toLowerCase() || "none",
+    geminiApiKey: process.env.GEMINI_API_KEY?.trim() || undefined,
+    model: process.env.TRANSCRIPTION_MODEL?.trim() || DEFAULT_TRANSCRIPTION_MODEL,
   };
 }
 

@@ -1,7 +1,7 @@
 // Gemini-puhesynteesi koeajon testiaineiston tekemiseen (synteettiset dialogit). EI kuulu sovellukseen.
 // Pyyntömuoto: Interactions API, response_format audio; vastaus on WAV (24 kHz, mono, 16 bit) base64:nä.
 
-import { GeminiError, GeminiHttp } from "./gemini";
+import { GeminiError, GeminiHttp } from "../../lib/transcription/gemini-client";
 import { buildWav } from "./wav";
 
 export const DEFAULT_TTS_MODEL = "gemini-3.8-flash-tts";

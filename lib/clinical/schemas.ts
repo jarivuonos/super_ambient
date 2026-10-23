@@ -42,6 +42,8 @@ export type Speaker = (typeof SPEAKERS)[number];
 export const TranscriptSegmentSchema = z.strictObject({
   id: z.string().regex(/^s\d{1,4}$/),
   speaker: z.enum(SPEAKERS),
+  /** Palvelun tai käyttäjän antama puhujatunniste, kun rooli on tuntematon (esim. "Puhuja 2"); näytetään tekstikentässä roolin sijaan. */
+  speakerLabel: z.string().max(40).optional(),
   text: z.string().max(5000),
   startMs: z.number().int().nonnegative().nullable(),
   endMs: z.number().int().nonnegative().nullable(),

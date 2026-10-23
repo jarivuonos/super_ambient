@@ -2,7 +2,7 @@
 
 import { mockStructure } from "../../lib/clinical/mock-structurer";
 import { parsePastedTranscript } from "../../lib/clinical/transcript";
-import type { AsrResult } from "./gemini";
+import type { AsrResult } from "../../lib/transcription/gemini-client";
 import { align, compareKeys, negationScore, numberScore, speakerScore, tokenize, wordErrorRate, type Agreement, type CriticalScore, type SpeakerScore, type WerResult } from "./metrics";
 import { referenceText, type Reference } from "./references";
 

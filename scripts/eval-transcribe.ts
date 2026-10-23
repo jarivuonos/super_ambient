@@ -22,7 +22,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { extname, join, basename } from "node:path";
 import { SAMPLE_CONVERSATIONS } from "../lib/clinical/sample-conversations";
-import { engineFor, GeminiError, GeminiTranscriber, type AsrResult, type Engine } from "./asr/gemini";
+import { engineFor, GeminiError, GeminiTranscriber, type AsrResult, type Engine } from "../lib/transcription/gemini-client";
 import { tokenize } from "./asr/metrics";
 import { findReference, parseReferenceText, type Reference } from "./asr/references";
 import { loadRuns } from "./asr/results";

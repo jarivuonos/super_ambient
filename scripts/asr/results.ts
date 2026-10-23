@@ -2,7 +2,7 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { AsrResult } from "./gemini";
+import type { AsrResult } from "../../lib/transcription/gemini-client";
 
 export interface SavedRun {
   file: string;
