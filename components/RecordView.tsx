@@ -28,6 +28,8 @@ import {
   type NoteState,
   type WorkContext,
 } from "@/lib/workflow/review";
+import type { StageTimings } from "@/lib/transcription/gemini-client";
+import { formatTimings } from "@/lib/transcription/timings";
 import { api, type PreviewResponse, type ReadResult, type SaveOutcome, type SaveRequestBody, type StatusResponse, type StructureResponse } from "./api";
 import { Badge, Button, ErrorBox, formatTime, JsonDetails, Section } from "./ui";
 import type { Guard } from "./Workspace";
@@ -55,6 +57,7 @@ function Recorder({ transcriptionConfigured, transcriptionText, onTranscript, gu
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [waited, setWaited] = useState(0);
+  const [timing, setTiming] = useState<StageTimings | null>(null);
   const recRef = useRef<MediaRecorder | null>(null);
   const blobRef = useRef<Blob | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -163,6 +166,7 @@ function Recorder({ transcriptionConfigured, transcriptionText, onTranscript, gu
     if (url) URL.revokeObjectURL(url);
     setUrl(null);
     blobRef.current = null;
+    setTiming(null);
     setPeakDb(null);
     setElapsed(0);
     setState("idle");
@@ -172,11 +176,13 @@ function Recorder({ transcriptionConfigured, transcriptionText, onTranscript, gu
     if (!blobRef.current) return;
     setBusy(true);
     setError(null);
+    setTiming(null);
     const form = new FormData();
     form.append("audio", blobRef.current, "harjoitus.webm");
-    const res = await guard((signal) => api<{ transcript: Transcript }>("/api/transcribe", { method: "POST", body: form, signal }));
+    const res = await guard((signal) => api<{ transcript: Transcript; timings?: StageTimings }>("/api/transcribe", { method: "POST", body: form, signal }));
     if (res === null) return;
     setBusy(false);
+    setTiming((res.ok ? res.data.timings : (res.error.detail as { timings?: StageTimings } | undefined)?.timings) ?? null);
     if (!res.ok) {
       // Vercel hylkää yli ~4,5 Mt:n pyynnöt ennen kuin sovellus näkee ne.
       setError(res.error.status === 413 ? "Äänite on liian suuri tälle palvelimelle (Vercelissä raja on noin 4,5 Mt eli runsaat 4 minuuttia). Äänitä lyhyempi pätkä tai käytä paikallista ajoa." : res.error.message);
@@ -236,6 +242,7 @@ function Recorder({ transcriptionConfigured, transcriptionText, onTranscript, gu
       {url && <audio controls src={url} className="mt-2 w-full" />}
       {!transcriptionConfigured && <p className="mt-2 text-xs text-zinc-600">{transcriptionText} Reaaliaikaista litterointia tai puhujien erottelua ei ole käytössä.</p>}
       {transcriptionConfigured && <p className="mt-2 text-xs text-amber-800">{transcriptionText}</p>}
+      {timing && <p className="mt-1 text-xs text-zinc-600">{formatTimings(timing, elapsed)}</p>}
       <p className="mt-1 text-xs text-zinc-500">Äänite säilyy vain tämän selainistunnon muistissa. Sitä ei lähetetä HAPIin; litterointipalvelulle vain painamalla ”Litteroi äänite”.</p>
       {error && (
         <div className="mt-2">

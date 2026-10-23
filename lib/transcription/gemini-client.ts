@@ -23,9 +23,28 @@ export interface AsrWord {
   endRaw?: unknown;
 }
 
+/** Yhden litterointiketjun vaiheiden kestot (ms). Vaiheet, joihin ei päästy (virhe aiemmin), ovat 0. Ei sisällä tekstiä eikä avainta. */
+export interface StageTimings {
+  audioBytes: number;
+  /** Tiedoston lataus Googlelle (aloitus + tavut). */
+  uploadMs: number;
+  /** Odotus, että Google on käsitellyt tiedoston käyttövalmiiksi. */
+  activeMs: number;
+  /** Litterointipyyntö kokonaisuudessaan: sisältää epäonnistuneet yritykset ja uusintojen odotukset. */
+  transcribeMs: number;
+  /** Poisto Googlelta. */
+  deleteMs: number;
+  totalMs: number;
+  /** Uusintojen välillä odotettu aika (kuuluu litterointipyynnön sisälle, ei ole Googlen käsittelyaikaa). */
+  retryWaitMs: number;
+  retries: number;
+}
+
 export interface AsrResult {
   text: string;
   words: AsrWord[];
+  /** Vaiheiden kestot (onnistuneessa ketjussa). */
+  timings?: StageTimings;
   /** Vastaus sellaisenaan: tallennetaan ajon tuloksiin, koska vastauksen muoto on uusi ja voi poiketa dokumentaatiosta. */
   raw: unknown;
 }
@@ -70,6 +89,8 @@ export interface GeminiOptions {
   maxRetries?: number;
   /** Käyttäjän peruutus (esim. selaimen pyyntö katkesi): pysäyttää pyynnöt eikä uusi niitä. Tiedoston poisto ei noudata tätä. */
   signal?: AbortSignal;
+  /** Kutsutaan ketjun lopussa (myös virheen jälkeen) vaiheiden kestoilla. */
+  onTimings?: (t: StageTimings) => void;
   /** Kutsutaan ennen jokaista uusintaa (esim. tulostukseen), jotta pitkä odotus ei ole hiljainen. */
   onRetry?: (info: { status?: number; waitMs: number; attempt: number; maxRetries: number }) => void;
 }
@@ -85,6 +106,9 @@ export class GeminiHttp {
   protected f: typeof fetch;
   protected sleep: (ms: number) => Promise<void>;
   protected retries: number;
+  /** Uusintojen väliset odotukset ja uusintojen määrä nykyisessä ketjussa (aikamittausta varten). */
+  protected retryWaitMs = 0;
+  protected retryCount = 0;
 
   constructor(protected o: GeminiOptions) {
     this.base = (o.baseUrl ?? GEMINI_BASE).replace(/\/+$/, "");
@@ -120,6 +144,13 @@ export class GeminiHttp {
   }
 
   /** Pyyntö uusinnoin: 429 ja 5xx odotetaan ja yritetään uudelleen (Retry-After huomioiden, enintään 60 s). */
+  /** Uusinnan odotus: kirjataan aikamittaukseen. */
+  protected async nap(ms: number): Promise<void> {
+    this.retryWaitMs += ms;
+    this.retryCount++;
+    await this.sleep(ms);
+  }
+
   protected async request(url: string, init: RequestInit, timeoutMs: number, honorCancel = true): Promise<Response> {
     const outer = honorCancel ? this.o.signal : undefined;
     for (let attempt = 0; ; attempt++) {
@@ -133,7 +164,7 @@ export class GeminiHttp {
         if (attempt >= this.retries) throw new GeminiError(`Yhteys epäonnistui: ${this.safe((e as Error).message)}`);
         const wait = 2000 * 2 ** attempt;
         this.o.onRetry?.({ waitMs: wait, attempt: attempt + 1, maxRetries: this.retries });
-        await this.sleep(wait);
+        await this.nap(wait);
         continue;
       }
       if (res.ok) return res;
@@ -143,7 +174,7 @@ export class GeminiHttp {
       const ra = Number(res.headers.get("retry-after"));
       const wait = Math.min(60_000, Number.isFinite(ra) && ra > 0 ? ra * 1000 : 2000 * 2 ** attempt);
       this.o.onRetry?.({ status: res.status, waitMs: wait, attempt: attempt + 1, maxRetries: this.retries });
-      await this.sleep(wait);
+      await this.nap(wait);
     }
   }
 
@@ -262,13 +293,52 @@ export class GeminiTranscriber extends GeminiHttp {
 
   /** Koko ketju: lataa, odota, litteroi ja poista tiedosto palvelusta myös virhetilanteessa. */
   async transcribeBytes(bytes: Uint8Array, mimeType: string, displayName: string, opt: TranscribeOptions): Promise<AsrResult> {
-    const up = await this.upload(bytes, mimeType, displayName);
+    const now = () => performance.now();
+    this.retryWaitMs = 0;
+    this.retryCount = 0;
+    const t0 = now();
+    // Jokainen vaihe saa oman kestonsa; epäonnistunut vaihe saa aikansa ja myöhemmät jäävät nollaan.
+    type Stage = "upload" | "active" | "transcribe";
+    const spent: Record<Stage, number> = { upload: 0, active: 0, transcribe: 0 };
+    let stage: Stage = "upload";
+    let last = t0;
+    const endStage = () => {
+      const t = now();
+      spent[stage] = t - last;
+      last = t;
+    };
+    let result: AsrResult | undefined;
+    let failed: unknown;
+    let up: { uri: string; name: string } | undefined;
     try {
+      up = await this.upload(bytes, mimeType, displayName);
+      endStage();
+      stage = "active";
       await this.waitActive(up.name);
-      return await this.transcribe({ uri: up.uri, mimeType }, opt);
+      endStage();
+      stage = "transcribe";
+      result = await this.transcribe({ uri: up.uri, mimeType }, opt);
+      endStage();
+    } catch (e) {
+      failed = e;
+      endStage();
     } finally {
-      await this.delete(up.name).catch(() => undefined);
+      if (up) await this.delete(up.name).catch(() => undefined);
     }
+    const t4 = now();
+    const timings: StageTimings = {
+      audioBytes: bytes.byteLength,
+      uploadMs: spent.upload,
+      activeMs: spent.active,
+      transcribeMs: spent.transcribe,
+      deleteMs: t4 - last,
+      totalMs: t4 - t0,
+      retryWaitMs: this.retryWaitMs,
+      retries: this.retryCount,
+    };
+    this.o.onTimings?.(timings);
+    if (failed !== undefined) throw failed;
+    return { ...result!, timings };
   }
 }
 

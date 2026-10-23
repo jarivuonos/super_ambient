@@ -235,3 +235,51 @@ describe("kiintiövirheet", () => {
     expect(retries).toBe(1);
   });
 });
+
+describe("vaiheiden aikamittaus", () => {
+  const file = (n = 3) => new Uint8Array(n);
+  const opts = { languageCodes: ["fi-FI"], diarize: false, timestamps: false };
+
+  it("onnistunut ketju: kaikki vaiheet mitataan, kokonaisaika kattaa vaiheet, uusintojen odotus ja määrä kirjataan", async () => {
+    let n = 0;
+    const seen: unknown[] = [];
+    const f = fake({ interactions: () => (++n === 1 ? new Response("{}", { status: 503, headers: { "retry-after": "7" } }) : Response.json(INTERACTION)) });
+    const r = await make(f, { onTimings: (t) => void seen.push(t) }).transcribeBytes(file(5), "audio/ogg", "x", opts);
+    const t = r.timings!;
+    expect(t.audioBytes).toBe(5);
+    expect(t.retries).toBe(1);
+    expect(t.retryWaitMs).toBe(7000);
+    for (const k of ["uploadMs", "activeMs", "transcribeMs", "deleteMs", "totalMs"] as const) expect(t[k]).toBeGreaterThanOrEqual(0);
+    expect(t.totalMs + 1).toBeGreaterThanOrEqual(t.uploadMs + t.activeMs + t.transcribeMs + t.deleteMs);
+    expect(seen).toEqual([t]);
+  });
+
+  it("virhe litteroinnissa: ajat annetaan silti, uusinnat kirjataan ja tiedosto poistetaan", async () => {
+    const seen: { retries: number; deleteMs: number; transcribeMs: number }[] = [];
+    const f = fake({ interactions: () => new Response(JSON.stringify({ error: { message: "kiire" } }), { status: 503 }) });
+    const err = await make(f, { maxRetries: 2, onTimings: (t) => void seen.push(t) }).transcribeBytes(file(), "audio/ogg", "x", opts).catch((e) => e);
+    expect(err).toBeInstanceOf(GeminiError);
+    expect(seen).toHaveLength(1);
+    expect(seen[0].retries).toBe(2);
+    expect(seen[0].transcribeMs).toBeGreaterThanOrEqual(0);
+    expect(f.calls.some((c) => c.method === "DELETE")).toBe(true);
+  });
+
+  it("virhe jo latauksessa: aika kirjataan latauksen piikkiin, litterointia ei yritetty eikä poistettavaa ole", async () => {
+    const seen: { uploadMs: number; activeMs: number; transcribeMs: number; deleteMs: number }[] = [];
+    const f = fake({ uploadUrl: "https://evil.example/upload" });
+    await make(f, { onTimings: (t) => void seen.push(t) }).transcribeBytes(file(), "audio/ogg", "x", opts).catch(() => undefined);
+    expect(seen).toHaveLength(1);
+    expect(seen[0].uploadMs).toBeGreaterThanOrEqual(0);
+    expect([seen[0].activeMs, seen[0].transcribeMs]).toEqual([0, 0]);
+    expect(f.calls.some((c) => c.method === "DELETE")).toBe(false);
+  });
+
+  it("uusi ketju nollaa edellisen uusinnat", async () => {
+    let n = 0;
+    const f = fake({ interactions: () => (++n === 1 ? new Response("{}", { status: 503, headers: { "retry-after": "3" } }) : Response.json(INTERACTION)) });
+    const client = make(f);
+    expect((await client.transcribeBytes(file(), "audio/ogg", "x", opts)).timings!.retries).toBe(1);
+    expect((await client.transcribeBytes(file(), "audio/ogg", "x", opts)).timings!.retries).toBe(0);
+  });
+});

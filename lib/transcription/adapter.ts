@@ -1,5 +1,6 @@
 import type { Transcript } from "../clinical/schemas";
 import { GeminiTranscriptionAdapter } from "./gemini-adapter";
+import type { StageTimings } from "./gemini-client";
 
 export interface TranscriptionCapabilities {
   /** Koko tallenteen litterointi tallennuksen jälkeen. */
@@ -17,7 +18,8 @@ export interface TranscriptionAdapter {
   readonly configured: boolean;
   readonly description: string;
   readonly capabilities: TranscriptionCapabilities;
-  transcribe(audio: Blob, opts: { language: string; signal?: AbortSignal }): Promise<Transcript>;
+  /** `onTimings` saa vaiheiden kestot ketjun lopussa (myös virheen jälkeen), jos palvelu mittaa niitä. */
+  transcribe(audio: Blob, opts: { language: string; signal?: AbortSignal; onTimings?: (t: StageTimings) => void }): Promise<Transcript>;
   /** Myöhempi laajennus: puhevirta ja osittaiset tulokset. */
   openStream?(opts: { language: string; onPartial: (text: string) => void }): Promise<{ push(chunk: Blob): void; close(): Promise<Transcript> }>;
 }

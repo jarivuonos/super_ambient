@@ -1,7 +1,7 @@
 import type { Transcript, TranscriptSegment } from "../clinical/schemas";
 import { transcriptVersion } from "../clinical/transcript";
 import { TranscriptionUnavailable, type TranscriptionAdapter, type TranscriptionCapabilities } from "./adapter";
-import { GeminiError, GeminiTranscriber, type AsrResult } from "./gemini-client";
+import { GeminiError, GeminiTranscriber, type AsrResult, type StageTimings } from "./gemini-client";
 
 // Gemini-litterointi (valinnainen, TRANSCRIPTION_PROVIDER=gemini). Ääni lähetetään Googlelle (Files API) ja poistetaan sieltä
 // litteroinnin jälkeen. Puhujat merkitään "Puhuja N"; rooleiksi (lääkäri, potilas, läheinen) käyttäjä muuttaa ne käsin.
@@ -117,10 +117,10 @@ export class GeminiTranscriptionAdapter implements TranscriptionAdapter {
 
   constructor(private o: GeminiAdapterOptions) {}
 
-  async transcribe(audio: Blob, opts: { language: string; signal?: AbortSignal }): Promise<Transcript> {
+  async transcribe(audio: Blob, opts: { language: string; signal?: AbortSignal; onTimings?: (t: StageTimings) => void }): Promise<Transcript> {
     const mime = normalizeMime(audio.type);
     if (!mime) throw new TranscriptionUnavailable(`Äänitteen muotoa${audio.type ? ` (${audio.type.split(";")[0]})` : ""} ei tueta.`);
-    const client = new GeminiTranscriber({ apiKey: this.o.apiKey, model: this.o.model, maxRetries: this.o.maxRetries ?? 3, signal: opts.signal, fetchImpl: this.o.fetchImpl, sleep: this.o.sleep });
+    const client = new GeminiTranscriber({ apiKey: this.o.apiKey, model: this.o.model, maxRetries: this.o.maxRetries ?? 3, signal: opts.signal, onTimings: opts.onTimings, fetchImpl: this.o.fetchImpl, sleep: this.o.sleep });
     try {
       const bytes = new Uint8Array(await audio.arrayBuffer());
       const result = await client.transcribeBytes(bytes, mime, `ambient-${crypto.randomUUID().slice(0, 8)}`, { languageCodes: [languageCodeFor(opts.language)], diarize: true, timestamps: false, digits: true });

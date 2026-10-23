@@ -161,3 +161,19 @@ describe("litterointipalvelun valinta", () => {
     expect(ok.description).not.toContain(KEY);
   });
 });
+
+describe("vaiheiden kestot adapterin läpi", () => {
+  it("onTimings saa mittauksen onnistuneen ketjun lopussa ja virheen jälkeen", async () => {
+    const ok: { audioBytes: number }[] = [];
+    await adapter(fake(() => Response.json(REPLY))).transcribe(ogg(), { language: "fi", onTimings: (t) => void ok.push(t) });
+    expect(ok).toHaveLength(1);
+    expect(ok[0].audioBytes).toBe(4);
+
+    const failed: { retries: number }[] = [];
+    const f = fake(() => Response.json({ error: { message: "x" } }, { status: 503 }));
+    const err = await adapter(f, { maxRetries: 1 }).transcribe(ogg(), { language: "fi", onTimings: (t) => void failed.push(t) }).catch((e) => e);
+    expect(err).toBeInstanceOf(TranscriptionUnavailable);
+    expect(failed).toHaveLength(1);
+    expect(failed[0].retries).toBe(1);
+  });
+});

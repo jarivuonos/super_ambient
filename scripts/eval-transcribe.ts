@@ -22,7 +22,8 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { extname, join, basename } from "node:path";
 import { SAMPLE_CONVERSATIONS } from "../lib/clinical/sample-conversations";
-import { engineFor, GeminiError, GeminiTranscriber, type AsrResult, type Engine } from "../lib/transcription/gemini-client";
+import { engineFor, GeminiError, GeminiTranscriber, type AsrResult, type Engine, type StageTimings } from "../lib/transcription/gemini-client";
+import { formatTimings } from "../lib/transcription/timings";
 import { tokenize } from "./asr/metrics";
 import { findReference, parseReferenceText, type Reference } from "./asr/references";
 import { loadRuns } from "./asr/results";
@@ -120,6 +121,7 @@ interface Row {
   score?: FileScore;
   chars?: number;
   words?: number;
+  timings?: StageTimings;
 }
 function printSummary(rows: Row[], modes: readonly string[]) {
   console.log("\n=== YHTEENVETO ===");
@@ -199,11 +201,13 @@ mkdirSync(outDir, { recursive: true });
 console.log(`\nLÄHETETÄÄN ${items.length * modes.length} pyyntöä Googlen Gemini API:lle. Tulokset: ${outDir}\n`);
 
 const retries = Math.max(0, Math.min(10, Number(opt("retries", "3")) || 0));
+let lastTimings: StageTimings | undefined;
 const gem = new GeminiTranscriber({
   apiKey,
   model,
   engine,
   maxRetries: retries,
+  onTimings: (t) => void (lastTimings = t),
   onRetry: (i) => console.log(`    … ${i.status ? `HTTP ${i.status}` : "yhteysvirhe"}, odotetaan ${(i.waitMs / 1000).toFixed(0)} s ja yritetään uudelleen (${i.attempt}/${i.maxRetries})`),
 });
 
@@ -213,6 +217,7 @@ for (const it of items) {
   const bytes = new Uint8Array(readFileSync(it.file));
   for (const m of modes) {
     const t0 = Date.now();
+    lastTimings = undefined;
     const row: Row = { base: it.base, mode: m, ok: false, seconds: 0 };
     let result: AsrResult | null = null;
     try {
@@ -225,9 +230,11 @@ for (const it of items) {
       row.error = e instanceof GeminiError ? e.message : `Odottamaton virhe: ${(e as Error).message.slice(0, 200)}`;
     }
     row.seconds = (Date.now() - t0) / 1000;
+    row.timings = lastTimings;
     rows.push(row);
-    writeFileSync(join(outDir, `${it.base}.${m}.json`), JSON.stringify({ file: it.base, mode: m, language: lang, model, engine, digits: flag("digits") && engine === "prompt", requestSeconds: row.seconds, error: row.error ?? null, score: row.score ?? null, result }, null, 2));
+    writeFileSync(join(outDir, `${it.base}.${m}.json`), JSON.stringify({ file: it.base, mode: m, language: lang, model, engine, digits: flag("digits") && engine === "prompt", requestSeconds: row.seconds, error: row.error ?? null, timings: row.timings ?? null, score: row.score ?? null, result }, null, 2));
     console.log(`  ${it.base} [${m}] ${row.ok ? `OK ${row.seconds.toFixed(1)} s${row.score ? `, WER ${pct(row.score.wer.wer)}` : ", ei viitettä"}` : `VIRHE ${row.error}`}`);
+    if (row.timings) console.log(`    ${formatTimings(row.timings)}`);
   }
 }
 
