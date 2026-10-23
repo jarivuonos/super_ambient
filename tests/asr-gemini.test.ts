@@ -329,3 +329,44 @@ describe("ajattelun määrä, yritykset ja tokenit", () => {
     expect(bare.timings!.thoughtTokens).toBeUndefined();
   });
 });
+
+describe("puhujatunnisteet yhdellä rivillä", () => {
+  const ONE_LINE = "Speaker 1: Mikä tuo tänään vastaanotolle? Speaker 2: Minulla on ollut vatsakipua oikealla alavatsalla eilisillasta asti. Pahoinvointia on ollut. Speaker 1: Onko ollut kuumetta? Speaker 2: Ei ole kuumetta. Hänen isällään on diabetes. Käytän amlodipiinia 5 mg kerran päivässä. Speaker 1: Verenpaine oli 150/95. Epäilen appendisiittiä.";
+  const said = (words: { text: string; speaker?: string }[]) => {
+    const turns: string[] = [];
+    let cur: string | undefined;
+    for (const w of words) {
+      if (w.speaker !== cur || !turns.length) {
+        turns.push(`${w.speaker}:`);
+        cur = w.speaker;
+      }
+      turns[turns.length - 1] += ` ${w.text}`;
+    }
+    return turns;
+  };
+
+  it("koko vastaus yhdellä rivillä jaetaan puheenvuoroihin tunnisteiden kohdalta (käyttäjän todellinen tulos)", () => {
+    const words = parseSpeakerLines(ONE_LINE);
+    expect(said(words)).toEqual([
+      "spk_1: Mikä tuo tänään vastaanotolle?",
+      "spk_2: Minulla on ollut vatsakipua oikealla alavatsalla eilisillasta asti. Pahoinvointia on ollut.",
+      "spk_1: Onko ollut kuumetta?",
+      "spk_2: Ei ole kuumetta. Hänen isällään on diabetes. Käytän amlodipiinia 5 mg kerran päivässä.",
+      "spk_1: Verenpaine oli 150/95. Epäilen appendisiittiä.",
+    ]);
+    expect(words.some((w) => /speaker/i.test(w.text))).toBe(false);
+  });
+
+  it("sama vastaus riveittäin ja yhdellä rivillä tuottaa täsmälleen samat sanat ja puhujat", () => {
+    const multiline = ONE_LINE.replace(/ Speaker /g, "\nSpeaker ");
+    expect(parseSpeakerLines(multiline)).toEqual(parseSpeakerLines(ONE_LINE));
+  });
+
+  it("lihavoidut tunnisteet, kirjaintunnukset ja sanan keskellä oleva 'speaker' käsitellään oikein; ennen ensimmäistä tunnistetta oleva teksti säilyy ilman puhujaa", () => {
+    expect(said(parseSpeakerLines("**Speaker 1:** Hei. **Speaker 2**: Moi."))).toEqual(["spk_1: Hei.", "spk_2: Moi."]);
+    expect(said(parseSpeakerLines("Puhuja A: yksi Puhuja B: kaksi"))).toEqual(["spk_a: yksi", "spk_b: kaksi"]);
+    expect(parseSpeakerLines("Hän on loudspeaker 1: ei tunniste")).toEqual([]);
+    const withPreamble = parseSpeakerLines("Tässä litteraatti: Speaker 1: Hei");
+    expect(withPreamble.map((w) => [w.text, w.speaker])).toEqual([["Tässä", undefined], ["litteraatti:", undefined], ["Hei", "spk_1"]]);
+  });
+});

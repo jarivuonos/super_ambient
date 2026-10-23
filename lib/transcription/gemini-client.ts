@@ -399,17 +399,22 @@ function collectTexts(node: unknown, out: string[], depth: number): void {
   }
 }
 
-const SPEAKER_LINE = /^\s*(?:\*\*)?\s*(?:speaker|puhuja)\s*([A-Za-z0-9]+)\s*(?:\*\*)?\s*:\s*(?:\*\*)?\s*(.*)$/iu;
+/** Puhujatunniste "Speaker 2:" / "Puhuja B:" (myös lihavoituna) missä kohtaa tekstiä tahansa, ei kirjaimen tai numeron jälkeen. */
+const SPEAKER_MARK = /(?<![\p{L}\p{N}])(?:\*\*)?\s*(?:speaker|puhuja)\s*([A-Za-z0-9]+)\s*(?:\*\*)?\s*:(?:\*\*)?/giu;
 
-/** Rivit "Speaker 1: teksti" sanoiksi puhujatunnuksineen (spk_1, …). Ilman tunnistettuja rivejä palautuu tyhjä lista. */
+/**
+ * Tunnisteet "Speaker 1:" tekstissä sanoiksi puhujatunnuksineen (spk_1, …). Tunnisteet tunnistetaan rivin keskeltäkin, koska malli voi
+ * palauttaa koko vastauksen yhdellä rivillä; kunkin tunnisteen jälkeinen teksti kuuluu sille seuraavaan tunnisteeseen asti.
+ * Teksti ennen ensimmäistä tunnistetta säilyy ilman puhujaa. Ilman tunnisteita palautuu tyhjä lista.
+ */
 export function parseSpeakerLines(text: string): AsrWord[] {
+  const marks = [...text.matchAll(SPEAKER_MARK)];
+  if (!marks.length) return [];
   const words: AsrWord[] = [];
-  let found = false;
-  for (const line of text.replace(/\r\n?/g, "\n").split("\n")) {
-    const m = SPEAKER_LINE.exec(line);
-    if (!m) continue;
-    found = true;
-    for (const w of m[2].split(/\s+/).filter(Boolean)) words.push({ text: w, speaker: `spk_${m[1].toLowerCase()}` });
-  }
-  return found ? words : [];
+  const push = (chunk: string, speaker?: string) => {
+    for (const w of chunk.split(/\s+/).filter(Boolean)) words.push({ text: w, speaker });
+  };
+  push(text.slice(0, marks[0].index), undefined);
+  marks.forEach((m, i) => push(text.slice(m.index + m[0].length, marks[i + 1]?.index ?? text.length), `spk_${m[1].toLowerCase()}`));
+  return words;
 }

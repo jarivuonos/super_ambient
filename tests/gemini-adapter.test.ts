@@ -197,3 +197,11 @@ describe("ajattelun määrä asetuksena", () => {
     expect(JSON.parse(g.calls.find((c) => c.url.endsWith("/interactions"))!.body).generation_config).toBeUndefined();
   });
 });
+
+describe("yhden rivin vastaus muuttuu puheenvuoroiksi tekstikentässä", () => {
+  it("adapteri tuottaa rivit 'Puhuja N:' vaikka malli palauttaisi kaiken yhdellä rivillä", async () => {
+    const f = fake(() => Response.json({ output_text: "Speaker 1: Mikä tuo tänään? Speaker 2: Vatsakipua. Speaker 3: Hänen isällään on diabetes. Speaker 1: Selvä." }));
+    const t = await adapter(f).transcribe(ogg(), { language: "fi" });
+    expect(transcriptToText(t)).toBe("Puhuja 1: Mikä tuo tänään?\nPuhuja 2: Vatsakipua.\nPuhuja 3: Hänen isällään on diabetes.\nPuhuja 1: Selvä.");
+  });
+});
