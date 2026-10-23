@@ -42,6 +42,17 @@ export function planTurns(ref: Reference, voices: Record<string, string>): Plann
   return ref.turns.map((t) => ({ who: t.who, voice: voices[t.who] ?? voices.Tuntematon, text: t.text }));
 }
 
+/** Peräkkäiset saman puhujan (ja äänen) vuorot yhdeksi pyynnöksi: vähemmän pyyntöjä, luonnollisempi saman puhujan jatko. */
+export function mergeSameSpeaker(turns: PlannedTurn[]): PlannedTurn[] {
+  const out: PlannedTurn[] = [];
+  for (const t of turns) {
+    const last = out[out.length - 1];
+    if (last && last.who === t.who && last.voice === t.voice) last.text = `${last.text} ${t.text}`;
+    else out.push({ ...t });
+  }
+  return out;
+}
+
 export function planSummary(turns: PlannedTurn[]): { turns: number; chars: number; words: number; estMinutes: number } {
   const words = turns.reduce((n, t) => n + tokenize(t.text).length, 0);
   return { turns: turns.length, chars: turns.reduce((n, t) => n + t.text.length, 0), words, estMinutes: words / 140 };

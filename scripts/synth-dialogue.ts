@@ -6,7 +6,10 @@
 //
 // Valitsimet: --all (kaikki esimerkit) · --out local/asr/tts · --lang fi (tiedostonimen etuliite) ·
 //   --voices "Lääkäri=Charon,Potilas=Kore,Läheinen=Fenrir" · --gap 700 (ms puhujan vaihtuessa) · --style "ohje" ·
-//   --model gemini-3.8-flash-tts · --retries 3
+//   --model gemini-3.8-flash-tts · --retries 3 · --merge (saman puhujan peräkkäiset vuorot yhdeksi pyynnöksi)
+//
+// Ilmaisen tason päiväkiintiö on pieni (gemini-3.8-flash-tts: 10 pyyntöä/vrk): --merge vähentää pyyntöjä, ja välimuisti säästää uusinnoissa.
+// Huom: --merge muuttaa pyynnön tekstiä, joten ilman sitä tehdyt välimuistin puheenvuorot eivät päde sen kanssa (ja päinvastoin).
 //
 // Tulos: <out>/<lang>-<tunniste>.wav, jonka viite on esimerkin oma teksti: aja koeajo `bun run eval:transcribe -- --dir local/asr/tts`.
 // Puheenvuorot välimuistitetaan (<out>/parts), joten uusinta ei lähetä jo tehtyjä uudelleen.
@@ -16,7 +19,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SAMPLE_CONVERSATIONS } from "../lib/clinical/sample-conversations";
 import { findReference } from "./asr/references";
-import { planSummary, planTurns, parseVoiceMap, turnCacheKey, turnGaps } from "./asr/synth-plan";
+import { mergeSameSpeaker, planSummary, planTurns, parseVoiceMap, turnCacheKey, turnGaps } from "./asr/synth-plan";
 import { DEFAULT_TTS_MODEL, GeminiSpeaker } from "./asr/tts";
 import { GeminiError } from "./asr/gemini";
 import { durationSeconds, joinWav } from "./asr/wav";
@@ -64,7 +67,7 @@ if (!refs.length) {
 console.log(`Malli ${model} · kieli ${lang} · tauko ${gap} ms · kansio ${out}${style ? ` · tyyli "${style}"` : ""}\n`);
 let requests = 0;
 for (const { id, ref } of refs) {
-  const turns = planTurns(ref!, voices);
+  const turns = flag("merge") ? mergeSameSpeaker(planTurns(ref!, voices)) : planTurns(ref!, voices);
   const sum = planSummary(turns);
   const roles = [...new Set(turns.map((t) => `${t.who}=${t.voice}`))].join(", ");
   console.log(`  ${id.padEnd(14)} ${sum.turns} vuoroa, ${sum.chars} merkkiä, ~${sum.estMinutes.toFixed(1)} min · ${roles}`);
@@ -93,7 +96,7 @@ const speaker = new GeminiSpeaker({
 console.log(`\nLÄHETETÄÄN enintään ${requests} puheenvuoroa Googlen Gemini API:lle.\n`);
 let failed = false;
 for (const { id, ref } of refs) {
-  const turns = planTurns(ref!, voices);
+  const turns = flag("merge") ? mergeSameSpeaker(planTurns(ref!, voices)) : planTurns(ref!, voices);
   const parts: Uint8Array[] = [];
   try {
     for (const [i, t] of turns.entries()) {

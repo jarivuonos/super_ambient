@@ -210,3 +210,28 @@ describe("numerot numeroina (--digits)", () => {
     expect(body(b)).toBe(body(a));
   });
 });
+
+describe("kiintiövirheet", () => {
+  it("päiväkiintiö (429, 'per day') ei käynnistä uusintoja eikä odotusta; viesti kertoo palautumisajan", async () => {
+    let waits = 0;
+    let retries = 0;
+    const f = fake({ interactions: () => Response.json({ error: { message: "Rate limit exceeded (limit: 10 requests per day on Free Tier). Please retry in 23h19m47s." } }, { status: 429 }) });
+    const err = await make(f, { sleep: async () => void waits++, onRetry: () => void retries++ })
+      .transcribe({ uri: `${HOST}/v1beta/files/abc`, mimeType: "audio/ogg" }, { languageCodes: ["fi-FI"], diarize: false, timestamps: false })
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(GeminiError);
+    expect(err.status).toBe(429);
+    expect(err.message).toContain("23h19m47s");
+    expect([waits, retries]).toEqual([0, 0]);
+    expect(f.calls.filter((c) => c.url.endsWith("/interactions"))).toHaveLength(1);
+  });
+
+  it("minuuttikohtainen 429 yritetään edelleen uudelleen", async () => {
+    let n = 0;
+    let retries = 0;
+    const f = fake({ interactions: () => (++n === 1 ? Response.json({ error: { message: "Too many requests per minute" } }, { status: 429 }) : Response.json(INTERACTION)) });
+    const r = await make(f, { onRetry: () => void retries++ }).transcribe({ uri: `${HOST}/v1beta/files/abc`, mimeType: "audio/ogg" }, { languageCodes: ["fi-FI"], diarize: false, timestamps: false });
+    expect(r.text).toBeTruthy();
+    expect(retries).toBe(1);
+  });
+});

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SAMPLE_CONVERSATIONS } from "../lib/clinical/sample-conversations";
 import { findReference } from "../scripts/asr/references";
-import { DEFAULT_VOICES, GEMINI_VOICES, parseVoiceMap, planSummary, planTurns, turnCacheKey, turnGaps } from "../scripts/asr/synth-plan";
+import { DEFAULT_VOICES, GEMINI_VOICES, mergeSameSpeaker, parseVoiceMap, planSummary, planTurns, turnCacheKey, turnGaps } from "../scripts/asr/synth-plan";
 
 describe("dialogin puhesynteesin suunnittelu", () => {
   it("äänikartta: oletukset, ylikirjoitus (isoilla ja pienillä kirjaimilla), tuntematon ääni ja virheellinen muoto antavat virheen", () => {
@@ -37,5 +37,28 @@ describe("dialogin puhesynteesin suunnittelu", () => {
     expect(turnCacheKey("m", "Kore", "", "Hei")).toBe(k);
     expect(k).toMatch(/^[0-9a-f]{16}$/);
     for (const other of [turnCacheKey("m2", "Kore", "", "Hei"), turnCacheKey("m", "Puck", "", "Hei"), turnCacheKey("m", "Kore", "slow", "Hei"), turnCacheKey("m", "Kore", "", "Hei.")]) expect(other).not.toBe(k);
+  });
+});
+
+describe("saman puhujan vuorojen yhdistäminen", () => {
+  const T = (who: string, voice: string, text: string) => ({ who, voice, text });
+
+  it("peräkkäiset saman puhujan vuorot yhdistyvät välilyönnillä, puhujan vaihtuessa uusi pyyntö; alkuperäistä ei muuteta", () => {
+    const input = [T("L", "Charon", "Hei."), T("P", "Kore", "A."), T("P", "Kore", "B."), T("P", "Kore", "C."), T("L", "Charon", "D."), T("L", "Charon", "E.")];
+    const copy = JSON.parse(JSON.stringify(input));
+    const m = mergeSameSpeaker(input);
+    expect(m.map((t) => `${t.who}:${t.text}`)).toEqual(["L:Hei.", "P:A. B. C.", "L:D. E."]);
+    expect(input).toEqual(copy);
+    expect(mergeSameSpeaker([])).toEqual([]);
+  });
+
+  it("sama rooli eri äänellä ei yhdisty; oikea esimerkki pienenee, ja kaikki sanat säilyvät", () => {
+    expect(mergeSameSpeaker([T("P", "Kore", "a"), T("P", "Aoede", "b")])).toHaveLength(2);
+    const ref = findReference("t01")!;
+    const turns = planTurns(ref, DEFAULT_VOICES);
+    const merged = mergeSameSpeaker(turns);
+    expect(merged.length).toBeLessThan(turns.length);
+    expect(planSummary(merged).words).toBe(planSummary(turns).words);
+    for (let i = 1; i < merged.length; i++) expect(merged[i].who).not.toBe(merged[i - 1].who);
   });
 });

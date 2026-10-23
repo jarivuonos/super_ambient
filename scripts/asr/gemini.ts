@@ -95,6 +95,16 @@ export class GeminiHttp {
     return text.split(this.o.apiKey).join("***").replace(/\s+/g, " ").slice(0, 300);
   }
 
+  /** Kertoo, onko 429 päiväkohtainen kiintiö (viestissä "per day" tai "daily") eikä minuuttikohtainen. */
+  protected async isDailyQuota(res: Response): Promise<boolean> {
+    try {
+      const body = (await res.json()) as { error?: { message?: string } };
+      return /per day|daily/i.test(body?.error?.message ?? "");
+    } catch {
+      return false;
+    }
+  }
+
   protected async errorFrom(res: Response): Promise<GeminiError> {
     let detail = "";
     try {
@@ -121,6 +131,8 @@ export class GeminiHttp {
       }
       if (res.ok) return res;
       if (!RETRYABLE.has(res.status) || attempt >= this.retries) throw await this.errorFrom(res);
+      // Päiväkiintiö täynnä: odotus ei auta (palautuu vasta vuorokauden päästä), joten ei uusintoja.
+      if (res.status === 429 && (await this.isDailyQuota(res.clone()))) throw await this.errorFrom(res);
       const ra = Number(res.headers.get("retry-after"));
       const wait = Math.min(60_000, Number.isFinite(ra) && ra > 0 ? ra * 1000 : 2000 * 2 ** attempt);
       this.o.onRetry?.({ status: res.status, waitMs: wait, attempt: attempt + 1, maxRetries: this.retries });
