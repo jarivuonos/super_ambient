@@ -103,6 +103,8 @@ export function friendlyError(e: GeminiError): string {
 export interface GeminiAdapterOptions {
   apiKey: string;
   model: string;
+  /** `thinking_level` yleismallille (low, medium, high, minimal); ilman arvoa palvelun oletus (gemini-3.8-flash: medium). */
+  thinkingLevel?: string;
   maxRetries?: number;
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
@@ -123,7 +125,7 @@ export class GeminiTranscriptionAdapter implements TranscriptionAdapter {
     const client = new GeminiTranscriber({ apiKey: this.o.apiKey, model: this.o.model, maxRetries: this.o.maxRetries ?? 3, signal: opts.signal, onTimings: opts.onTimings, fetchImpl: this.o.fetchImpl, sleep: this.o.sleep });
     try {
       const bytes = new Uint8Array(await audio.arrayBuffer());
-      const result = await client.transcribeBytes(bytes, mime, `ambient-${crypto.randomUUID().slice(0, 8)}`, { languageCodes: [languageCodeFor(opts.language)], diarize: true, timestamps: false, digits: true });
+      const result = await client.transcribeBytes(bytes, mime, `ambient-${crypto.randomUUID().slice(0, 8)}`, { languageCodes: [languageCodeFor(opts.language)], diarize: true, timestamps: false, digits: true, thinkingLevel: this.o.thinkingLevel });
       return toTranscript(result);
     } catch (e) {
       if (e instanceof GeminiError) throw new TranscriptionUnavailable(friendlyError(e));

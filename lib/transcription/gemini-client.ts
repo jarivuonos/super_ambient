@@ -38,6 +38,12 @@ export interface StageTimings {
   /** Uusintojen välillä odotettu aika (kuuluu litterointipyynnön sisälle, ei ole Googlen käsittelyaikaa). */
   retryWaitMs: number;
   retries: number;
+  /** Litterointipyynnön yritykset järjestyksessä (tila 0 = yhteysvirhe) ja kunkin kesto: erottaa hitaan epäonnistuneen yrityksen onnistuneesta. */
+  attempts: { status: number; ms: number }[];
+  /** Mallin käyttämät tokenit (jos palvelu ilmoittaa): ajattelutokenit ovat näkymätöntä päättelyä, joka hidastaa ja maksaa. */
+  inputTokens?: number;
+  outputTokens?: number;
+  thoughtTokens?: number;
 }
 
 export interface AsrResult {
@@ -45,6 +51,8 @@ export interface AsrResult {
   words: AsrWord[];
   /** Vaiheiden kestot (onnistuneessa ketjussa). */
   timings?: StageTimings;
+  /** Tokenimäärät vastauksesta. */
+  usage?: { inputTokens?: number; outputTokens?: number; thoughtTokens?: number };
   /** Vastaus sellaisenaan: tallennetaan ajon tuloksiin, koska vastauksen muoto on uusi ja voi poiketa dokumentaatiosta. */
   raw: unknown;
 }
@@ -57,6 +65,8 @@ export interface TranscribeOptions {
   timestamps: boolean;
   /** Pyydä numerot, mittaukset, annokset ja päivämäärät numeroina (vain kehotetilassa). */
   digits?: boolean;
+  /** Mallin ajattelun määrä (`thinking_level`: low, medium, high, minimal – tuki vaihtelee malleittain). Vain kehotetilassa; ilman arvoa palvelun oletus. */
+  thinkingLevel?: string;
 }
 
 /** "transcribe": erillinen litterointimalli (transcription_config). "prompt": yleismalli, jolle litterointi pyydetään tekstikehotteella. */
@@ -109,6 +119,7 @@ export class GeminiHttp {
   /** Uusintojen väliset odotukset ja uusintojen määrä nykyisessä ketjussa (aikamittausta varten). */
   protected retryWaitMs = 0;
   protected retryCount = 0;
+  protected attempts: { status: number; ms: number }[] = [];
 
   constructor(protected o: GeminiOptions) {
     this.base = (o.baseUrl ?? GEMINI_BASE).replace(/\/+$/, "");
@@ -156,10 +167,14 @@ export class GeminiHttp {
     for (let attempt = 0; ; attempt++) {
       if (outer?.aborted) throw new GeminiError("Pyyntö peruttiin.");
       let res: Response;
+      const started = performance.now();
+      const track = url.endsWith("/interactions");
       try {
         const timeout = AbortSignal.timeout(timeoutMs);
         res = await this.f(url, { ...init, redirect: "manual", cache: "no-store", signal: outer ? AbortSignal.any([timeout, outer]) : timeout });
+        if (track) this.attempts.push({ status: res.status, ms: performance.now() - started });
       } catch (e) {
+        if (track) this.attempts.push({ status: 0, ms: performance.now() - started });
         if (outer?.aborted) throw new GeminiError("Pyyntö peruttiin.");
         if (attempt >= this.retries) throw new GeminiError(`Yhteys epäonnistui: ${this.safe((e as Error).message)}`);
         const wait = 2000 * 2 ** attempt;
@@ -282,6 +297,7 @@ export class GeminiTranscriber extends GeminiHttp {
             { type: "text", text: transcriptionPrompt(opt.languageCodes, opt.diarize, opt.digits) },
             { type: "audio", uri: file.uri, mime_type: file.mimeType },
           ],
+          ...(opt.thinkingLevel ? { generation_config: { thinking_level: opt.thinkingLevel } } : {}),
         }),
       },
       600_000,
@@ -296,6 +312,7 @@ export class GeminiTranscriber extends GeminiHttp {
     const now = () => performance.now();
     this.retryWaitMs = 0;
     this.retryCount = 0;
+    this.attempts = [];
     const t0 = now();
     // Jokainen vaihe saa oman kestonsa; epäonnistunut vaihe saa aikansa ja myöhemmät jäävät nollaan.
     type Stage = "upload" | "active" | "transcribe";
@@ -335,6 +352,8 @@ export class GeminiTranscriber extends GeminiHttp {
       totalMs: t4 - t0,
       retryWaitMs: this.retryWaitMs,
       retries: this.retryCount,
+      attempts: [...this.attempts],
+      ...(result?.usage ?? {}),
     };
     this.o.onTimings?.(timings);
     if (failed !== undefined) throw failed;
@@ -363,7 +382,10 @@ export function parseInteraction(body: unknown): AsrResult {
   if (!texts.length) collectTexts(body.outputs, texts, 0);
   const text = typeof body.output_text === "string" ? body.output_text : texts.join("");
   if (!text.trim() && words.length === 0) throw new GeminiError("Litterointivastauksesta ei löytynyt tekstiä (vastauksen muoto voi poiketa dokumentaatiosta; katso tallennettu raakavastaus).");
-  return { text, words, raw: body };
+  const u = isObj(body.usage) ? body.usage : undefined;
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+  const usage = u ? { inputTokens: num(u.total_input_tokens), outputTokens: num(u.total_output_tokens), thoughtTokens: num(u.total_thought_tokens) } : undefined;
+  return { text, words, raw: body, ...(usage ? { usage } : {}) };
 }
 
 /** Varalla: yleismallin vastaus voi olla `outputs`-listassa; kerätään sieltä `text`-kentät (vastaus tallennetaan raakana). */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parsePastedTranscript, transcriptToText } from "../lib/clinical/transcript";
-import { createTranscriptionAdapter, TranscriptionUnavailable } from "../lib/transcription/adapter";
+import { createTranscriptionAdapter, parseThinkingLevel, TranscriptionUnavailable } from "../lib/transcription/adapter";
 import { GeminiTranscriptionAdapter, languageCodeFor, MAX_SEGMENTS, normalizeMime, toTranscript } from "../lib/transcription/gemini-adapter";
 import type { AsrResult } from "../lib/transcription/gemini-client";
 
@@ -175,5 +175,25 @@ describe("vaiheiden kestot adapterin läpi", () => {
     expect(err).toBeInstanceOf(TranscriptionUnavailable);
     expect(failed).toHaveLength(1);
     expect(failed[0].retries).toBe(1);
+  });
+});
+
+describe("ajattelun määrä asetuksena", () => {
+  it("TRANSCRIPTION_THINKING: tyhjä on low, default jättää pois, tuntematon on low, isot kirjaimet kelpaavat", () => {
+    expect(parseThinkingLevel(undefined)).toBe("low");
+    expect(parseThinkingLevel("")).toBe("low");
+    expect(parseThinkingLevel("default")).toBeUndefined();
+    expect(parseThinkingLevel(" HIGH ")).toBe("high");
+    expect(parseThinkingLevel("minimal")).toBe("minimal");
+    expect(parseThinkingLevel("hyper")).toBe("low");
+  });
+
+  it("adapteri välittää tason pyyntöön; ilman tasoa pyynnössä ei ole generation_configia", async () => {
+    const f = fake(() => Response.json(REPLY));
+    await new GeminiTranscriptionAdapter({ apiKey: KEY, model: "gemini-3.8-flash", thinkingLevel: "low", fetchImpl: f.fetchImpl, sleep: async () => undefined }).transcribe(ogg(), { language: "fi" });
+    expect(JSON.parse(f.calls.find((c) => c.url.endsWith("/interactions"))!.body).generation_config).toEqual({ thinking_level: "low" });
+    const g = fake(() => Response.json(REPLY));
+    await adapter(g).transcribe(ogg(), { language: "fi" });
+    expect(JSON.parse(g.calls.find((c) => c.url.endsWith("/interactions"))!.body).generation_config).toBeUndefined();
   });
 });

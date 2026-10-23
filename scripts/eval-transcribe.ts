@@ -3,8 +3,9 @@
 //   bun run eval:transcribe -- --list                       Näyttää esimerkkikeskustelut, joita voi lukea ääneen
 //   bun run eval:transcribe                                 Kuivaajo: näyttää tiedostot ja viitteet, EI lähetä mitään
 //   bun run eval:transcribe -- --send [--mode plain|diarize|both] [--lang fi-FI] [--timestamps]
-//                                      [--only id1,id2] [--dir local/asr/audio] [--model gemini-3.5-transcribe] [--solo] [--retries 3] [--engine transcribe|prompt] [--digits]
+//                                      [--only id1,id2] [--dir local/asr/audio] [--model gemini-3.5-transcribe] [--solo] [--retries 3] [--engine transcribe|prompt] [--digits] [--thinking low]
 //
+// --thinking: (vain kehotetila) `thinking_level`; gemini-3.8-flashin oletus on medium, ja alempi taso lyhentää odotusta (ks. ajattelutokenit tulosrivillä).
 // --digits: (vain kehotetila) pyytää numerot, mittaukset, annokset ja päivämäärät numeroina ("145/90", "5 mg"). Kirjoita viitetiedostoon
 //           luvut numeroina, jotta vertailu mittaa juuri tätä; sovelluksen mittausten poiminta ymmärtää vain numerot.
 // --engine: oletus johdetaan mallin nimestä. Nimi, jossa on "transcribe", käyttää erillistä litterointimallia (transcription_config);
@@ -64,6 +65,8 @@ const dir = opt("dir", "local/asr/audio");
 const lang = opt("lang", "fi-FI");
 const model = opt("model", "gemini-3.5-transcribe");
 const solo = flag("solo");
+/** --thinking low|medium|high|minimal (vain kehotetila): mallin ajattelun määrä; ilman valitsinta palvelun oletus. */
+const thinking = opt("thinking", "") || undefined;
 const engine = opt("engine", engineFor(model)) as Engine;
 if (engine !== "transcribe" && engine !== "prompt") {
   console.error("Virheellinen --engine (sallitut: transcribe, prompt).");
@@ -102,7 +105,7 @@ if (engine === "prompt" && flag("timestamps")) console.log("Huom: --timestamps e
 const items = collect();
 const modes = mode === "both" ? (["plain", "diarize"] as const) : ([mode] as const);
 
-console.log(`Kansio: ${dir} · kieli ${lang} · malli ${model} (${engine === "transcribe" ? "erillinen litterointimalli" : "yleismalli + kehote"}) · tilat: ${modes.join(", ")}${flag("timestamps") ? " · sanakohtaiset aikaleimat" : ""}${solo ? " · SOLO (yksi ääni, puhujapisteytys ohitetaan)" : ""}${flag("digits") && engine === "prompt" ? " · NUMEROT NUMEROINA" : ""}`);
+console.log(`Kansio: ${dir} · kieli ${lang} · malli ${model} (${engine === "transcribe" ? "erillinen litterointimalli" : "yleismalli + kehote"}) · tilat: ${modes.join(", ")}${flag("timestamps") ? " · sanakohtaiset aikaleimat" : ""}${solo ? " · SOLO (yksi ääni, puhujapisteytys ohitetaan)" : ""}${flag("digits") && engine === "prompt" ? " · NUMEROT NUMEROINA" : ""}${thinking && engine === "prompt" ? ` · AJATTELU ${thinking}` : ""}`);
 if (!items.length) {
   console.log(`\nÄänitiedostoja ei löytynyt. Tallenna ne kansioon ${dir} (${Object.keys(MIME).join(", ")}). Katso --list.`);
   process.exit(0);
@@ -221,7 +224,7 @@ for (const it of items) {
     const row: Row = { base: it.base, mode: m, ok: false, seconds: 0 };
     let result: AsrResult | null = null;
     try {
-      result = await gem.transcribeBytes(bytes, it.mime, `asr-test-${crypto.randomUUID().slice(0, 8)}`, { languageCodes: [lang], diarize: m === "diarize", timestamps: flag("timestamps"), digits: flag("digits") });
+      result = await gem.transcribeBytes(bytes, it.mime, `asr-test-${crypto.randomUUID().slice(0, 8)}`, { languageCodes: [lang], diarize: m === "diarize", timestamps: flag("timestamps"), digits: flag("digits"), thinkingLevel: thinking });
       row.ok = true;
       row.chars = result.text.length;
       row.words = result.words.length;
@@ -232,7 +235,7 @@ for (const it of items) {
     row.seconds = (Date.now() - t0) / 1000;
     row.timings = lastTimings;
     rows.push(row);
-    writeFileSync(join(outDir, `${it.base}.${m}.json`), JSON.stringify({ file: it.base, mode: m, language: lang, model, engine, digits: flag("digits") && engine === "prompt", requestSeconds: row.seconds, error: row.error ?? null, timings: row.timings ?? null, score: row.score ?? null, result }, null, 2));
+    writeFileSync(join(outDir, `${it.base}.${m}.json`), JSON.stringify({ file: it.base, mode: m, language: lang, model, engine, digits: flag("digits") && engine === "prompt", thinking: engine === "prompt" ? (thinking ?? null) : null, requestSeconds: row.seconds, error: row.error ?? null, timings: row.timings ?? null, score: row.score ?? null, result }, null, 2));
     console.log(`  ${it.base} [${m}] ${row.ok ? `OK ${row.seconds.toFixed(1)} s${row.score ? `, WER ${pct(row.score.wer.wer)}` : ", ei viitettä"}` : `VIRHE ${row.error}`}`);
     if (row.timings) console.log(`    ${formatTimings(row.timings)}`);
   }

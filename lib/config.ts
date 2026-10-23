@@ -1,5 +1,5 @@
 import "server-only";
-import { DEFAULT_TRANSCRIPTION_MODEL, type TranscriptionSettings } from "./transcription/adapter";
+import { DEFAULT_TRANSCRIPTION_MODEL, parseThinkingLevel, type TranscriptionSettings } from "./transcription/adapter";
 import { DEFAULT_JEV_MODEL, readJevSettings, readStructuringSettings, type JevSettingsResult } from "./jev-settings";
 
 // Palvelinpuolen asetukset. Avaimet luetaan vain ympäristömuuttujista.
@@ -49,6 +49,7 @@ export function getTranscriptionSettings(): TranscriptionSettings {
     provider: (process.env.TRANSCRIPTION_PROVIDER ?? "none").trim().toLowerCase() || "none",
     geminiApiKey: process.env.GEMINI_API_KEY?.trim() || undefined,
     model: process.env.TRANSCRIPTION_MODEL?.trim() || DEFAULT_TRANSCRIPTION_MODEL,
+    thinkingLevel: parseThinkingLevel(process.env.TRANSCRIPTION_THINKING),
   };
 }
 

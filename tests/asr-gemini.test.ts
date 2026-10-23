@@ -283,3 +283,49 @@ describe("vaiheiden aikamittaus", () => {
     expect((await client.transcribeBytes(file(), "audio/ogg", "x", opts)).timings!.retries).toBe(0);
   });
 });
+
+describe("ajattelun määrä, yritykset ja tokenit", () => {
+  const file = { uri: `${HOST}/v1beta/files/abc`, mimeType: "audio/ogg" };
+  const opts = { languageCodes: ["fi-FI"], diarize: false, timestamps: false };
+  const interactionBody = (f: ReturnType<typeof fake>) => JSON.parse(f.calls.find((c) => c.url.endsWith("/interactions"))!.body as string);
+
+  it("thinking_level lähtee yleismallin pyyntöön vain kun se on annettu; erillisen litterointimallin pyyntö ei muutu", async () => {
+    const a = fake();
+    await make(a, { model: "gemini-3.8-flash" }).transcribe(file, { ...opts, thinkingLevel: "low" });
+    expect(interactionBody(a).generation_config).toEqual({ thinking_level: "low" });
+
+    const b = fake();
+    await make(b, { model: "gemini-3.8-flash" }).transcribe(file, opts);
+    expect(interactionBody(b).generation_config).toBeUndefined();
+
+    const c = fake();
+    await make(c).transcribe(file, { ...opts, thinkingLevel: "low" });
+    expect(interactionBody(c).generation_config).toEqual({ transcription_config: { language_codes: ["fi-FI"] } });
+  });
+
+  it("litterointipyynnön jokainen yritys kirjataan tilakoodeineen ja kestoineen (yhteysvirhe = 0)", async () => {
+    let n = 0;
+    const f = fake({
+      interactions: () => {
+        n++;
+        if (n === 1) throw new Error("socket closed");
+        return n === 2 ? new Response("{}", { status: 503 }) : Response.json(INTERACTION);
+      },
+    });
+    const r = await make(f).transcribeBytes(new Uint8Array(2), "audio/ogg", "x", opts);
+    expect(r.timings!.attempts.map((a) => a.status)).toEqual([0, 503, 200]);
+    expect(r.timings!.attempts.every((a) => a.ms >= 0)).toBe(true);
+    expect(r.timings!.retries).toBe(2);
+  });
+
+  it("vastauksen tokenimäärät luetaan: syöte, vastaus ja ajattelu; puuttuva käyttötieto ei kaada", async () => {
+    const withUsage = { ...INTERACTION, usage: { total_input_tokens: 1155, total_output_tokens: 169, total_thought_tokens: 1633 } };
+    expect(parseInteraction(withUsage).usage).toEqual({ inputTokens: 1155, outputTokens: 169, thoughtTokens: 1633 });
+    expect(parseInteraction(INTERACTION).usage).toBeUndefined();
+    const f = fake({ interactions: () => Response.json(withUsage) });
+    const r = await make(f).transcribeBytes(new Uint8Array(1), "audio/ogg", "x", opts);
+    expect([r.timings!.inputTokens, r.timings!.outputTokens, r.timings!.thoughtTokens]).toEqual([1155, 169, 1633]);
+    const bare = await make(fake()).transcribeBytes(new Uint8Array(1), "audio/ogg", "x", opts);
+    expect(bare.timings!.thoughtTokens).toBeUndefined();
+  });
+});

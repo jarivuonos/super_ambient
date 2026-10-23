@@ -15,6 +15,14 @@ export function formatTimings(t: StageTimings, audioSeconds?: number): string {
   if (t.retries > 0) parts[2] += ` (josta uusintojen odotusta ${fmt(t.retryWaitMs)}, ${t.retries} uusintaa)`;
   parts.push(`poisto ${fmt(t.deleteMs)}`);
   let line = `Kesto yhteensä ${fmt(t.totalMs)}: ${parts.join(" · ")}.`;
+  const attempts = t.attempts ?? []; // vanhempi palvelin ei vielä lähetä yrityksiä
+  if (attempts.length > 1) {
+    const what = (status: number) => (status === 0 ? "yhteysvirhe" : status >= 200 && status < 300 ? "onnistui" : `HTTP ${status}`);
+    line += ` Yritykset: ${attempts.map((a, i) => `${i + 1}) ${what(a.status)}, ${fmt(a.ms)}`).join("; ")}.`;
+  }
+  if (t.thoughtTokens !== undefined) {
+    line += ` Malli käytti ${t.thoughtTokens} ajattelutokenia${t.outputTokens !== undefined ? ` (vastaus ${t.outputTokens} tokenia)` : ""}.`;
+  }
   if (audioSeconds && audioSeconds > 0 && request > 0) {
     line += ` Äänite ${fmt(audioSeconds * 1000)}: käsittely noin ${(request / 1000 / audioSeconds).toFixed(1).replace(".", ",")} × reaaliaika (ilman odotuksia).`;
   }

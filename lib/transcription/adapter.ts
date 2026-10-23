@@ -48,6 +48,16 @@ export interface TranscriptionSettings {
   /** Vain palvelinpuolella: avainta ei koskaan lähetetä selaimelle. */
   geminiApiKey?: string;
   model?: string;
+  thinkingLevel?: string;
+}
+
+/** Sallitut `TRANSCRIPTION_THINKING`-arvot; "default" jättää asetuksen pois (palvelun oletus). Oletus: low (nopeampi, ks. README). */
+export const THINKING_LEVELS = ["minimal", "low", "medium", "high"] as const;
+export function parseThinkingLevel(raw: string | undefined): string | undefined {
+  const v = (raw ?? "").trim().toLowerCase();
+  if (!v) return "low";
+  if (v === "default") return undefined;
+  return (THINKING_LEVELS as readonly string[]).includes(v) ? v : "low";
 }
 
 export const DEFAULT_TRANSCRIPTION_MODEL = "gemini-3.8-flash";
@@ -63,7 +73,7 @@ export function createTranscriptionAdapter(cfg: TranscriptionSettings): Transcri
     if (!cfg.geminiApiKey) {
       return new UnconfiguredTranscriptionAdapter("Gemini (avain puuttuu)", "TRANSCRIPTION_PROVIDER=gemini, mutta GEMINI_API_KEY puuttuu palvelimen asetuksista. Liitä litteraatti käsin.");
     }
-    return new GeminiTranscriptionAdapter({ apiKey: cfg.geminiApiKey, model: cfg.model || DEFAULT_TRANSCRIPTION_MODEL });
+    return new GeminiTranscriptionAdapter({ apiKey: cfg.geminiApiKey, model: cfg.model || DEFAULT_TRANSCRIPTION_MODEL, thinkingLevel: cfg.thinkingLevel });
   }
   // Palvelukohtainen adapteri lisätään vasta todellisen palvelun dokumentaation ja testauksen perusteella.
   return new UnconfiguredTranscriptionAdapter(
