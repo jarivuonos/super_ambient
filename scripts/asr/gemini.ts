@@ -37,13 +37,33 @@ export interface TranscribeOptions {
   timestamps: boolean;
 }
 
+/** "transcribe": erillinen litterointimalli (transcription_config). "prompt": yleismalli, jolle litterointi pyydetään tekstikehotteella. */
+export type Engine = "transcribe" | "prompt";
+
+export const engineFor = (model: string): Engine => (/transcribe/i.test(model) ? "transcribe" : "prompt");
+
+const LANGUAGE_NAMES: Record<string, string> = { fi: "Finnish", sv: "Swedish", en: "English" };
+
+/** Kehote yleismallille. Diarisointi pyydetään riveinä "Speaker N: teksti", jotka jäsennetään sanoiksi puhujineen. */
+export function transcriptionPrompt(languageCodes: string[], diarize: boolean): string {
+  const lang = LANGUAGE_NAMES[(languageCodes[0] ?? "fi").slice(0, 2).toLowerCase()] ?? languageCodes[0];
+  const base = `Transcribe the speech in this audio recording verbatim. The language is ${lang}. Do not summarize, translate, correct, or add anything, and write down exactly what was said, including negations such as "ei" or "inte". Output only the transcript, with no introduction or comments.`;
+  return diarize
+    ? `${base} Identify the distinct speakers and put each speaker turn on its own line, starting with the label "Speaker 1:", "Speaker 2:" and so on (use the same number for the same voice throughout).`
+    : base;
+}
+
 export interface GeminiOptions {
   apiKey: string;
   model: string;
+  /** Oletus johdetaan mallin nimestä (nimi sisältää "transcribe" -> erillinen litterointimalli). */
+  engine?: Engine;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
   maxRetries?: number;
+  /** Kutsutaan ennen jokaista uusintaa (esim. tulostukseen), jotta pitkä odotus ei ole hiljainen. */
+  onRetry?: (info: { status?: number; waitMs: number; attempt: number; maxRetries: number }) => void;
 }
 
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
@@ -56,8 +76,10 @@ export class GeminiTranscriber {
   private f: typeof fetch;
   private sleep: (ms: number) => Promise<void>;
   private retries: number;
+  readonly engine: Engine;
 
   constructor(private o: GeminiOptions) {
+    this.engine = o.engine ?? engineFor(o.model);
     this.base = (o.baseUrl ?? GEMINI_BASE).replace(/\/+$/, "");
     this.f = o.fetchImpl ?? fetch;
     this.sleep = o.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
@@ -88,13 +110,17 @@ export class GeminiTranscriber {
         res = await this.f(url, { ...init, redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(timeoutMs) });
       } catch (e) {
         if (attempt >= this.retries) throw new GeminiError(`Yhteys epäonnistui: ${this.safe((e as Error).message)}`);
-        await this.sleep(2000 * 2 ** attempt);
+        const wait = 2000 * 2 ** attempt;
+        this.o.onRetry?.({ waitMs: wait, attempt: attempt + 1, maxRetries: this.retries });
+        await this.sleep(wait);
         continue;
       }
       if (res.ok) return res;
       if (!RETRYABLE.has(res.status) || attempt >= this.retries) throw await this.errorFrom(res);
       const ra = Number(res.headers.get("retry-after"));
-      await this.sleep(Math.min(60_000, Number.isFinite(ra) && ra > 0 ? ra * 1000 : 2000 * 2 ** attempt));
+      const wait = Math.min(60_000, Number.isFinite(ra) && ra > 0 ? ra * 1000 : 2000 * 2 ** attempt);
+      this.o.onRetry?.({ status: res.status, waitMs: wait, attempt: attempt + 1, maxRetries: this.retries });
+      await this.sleep(wait);
     }
   }
 
@@ -156,6 +182,7 @@ export class GeminiTranscriber {
   }
 
   async transcribe(file: { uri: string; mimeType: string }, opt: TranscribeOptions): Promise<AsrResult> {
+    if (this.engine === "prompt") return this.transcribeByPrompt(file, opt);
     const mode: Json = { type: "verbatim" };
     if (opt.diarize) mode.diarization_mode = "speaker";
     if (opt.timestamps) mode.timestamp_granularities = ["word"];
@@ -175,6 +202,28 @@ export class GeminiTranscriber {
       600_000,
     );
     return parseInteraction(await res.json().catch(() => null));
+  }
+
+  /** Yleismalli: litterointi pyydetään kehotteella (ei transcription_config-asetuksia, ei sanakohtaisia aikaleimoja). */
+  private async transcribeByPrompt(file: { uri: string; mimeType: string }, opt: TranscribeOptions): Promise<AsrResult> {
+    const res = await this.request(
+      `${this.base}/v1beta/interactions`,
+      {
+        method: "POST",
+        headers: this.headers({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          model: this.o.model,
+          input: [
+            { type: "text", text: transcriptionPrompt(opt.languageCodes, opt.diarize) },
+            { type: "audio", uri: file.uri, mime_type: file.mimeType },
+          ],
+        }),
+      },
+      600_000,
+    );
+    const parsed = parseInteraction(await res.json().catch(() => null));
+    const words = opt.diarize ? parseSpeakerLines(parsed.text) : [];
+    return { ...parsed, words };
   }
 
   /** Koko ketju: lataa, odota, litteroi ja poista tiedosto palvelusta myös virhetilanteessa. */
@@ -207,7 +256,34 @@ export function parseInteraction(body: unknown): AsrResult {
       }
     }
   }
+  if (!texts.length) collectTexts(body.outputs, texts, 0);
   const text = typeof body.output_text === "string" ? body.output_text : texts.join("");
   if (!text.trim() && words.length === 0) throw new GeminiError("Litterointivastauksesta ei löytynyt tekstiä (vastauksen muoto voi poiketa dokumentaatiosta; katso tallennettu raakavastaus).");
   return { text, words, raw: body };
+}
+
+/** Varalla: yleismallin vastaus voi olla `outputs`-listassa; kerätään sieltä `text`-kentät (vastaus tallennetaan raakana). */
+function collectTexts(node: unknown, out: string[], depth: number): void {
+  if (depth > 4) return;
+  if (Array.isArray(node)) {
+    for (const n of node) collectTexts(n, out, depth + 1);
+  } else if (isObj(node)) {
+    if (typeof node.text === "string") out.push(node.text);
+    for (const k of ["content", "parts", "outputs"]) collectTexts(node[k], out, depth + 1);
+  }
+}
+
+const SPEAKER_LINE = /^\s*(?:\*\*)?\s*(?:speaker|puhuja)\s*([A-Za-z0-9]+)\s*(?:\*\*)?\s*:\s*(?:\*\*)?\s*(.*)$/iu;
+
+/** Rivit "Speaker 1: teksti" sanoiksi puhujatunnuksineen (spk_1, …). Ilman tunnistettuja rivejä palautuu tyhjä lista. */
+export function parseSpeakerLines(text: string): AsrWord[] {
+  const words: AsrWord[] = [];
+  let found = false;
+  for (const line of text.replace(/\r\n?/g, "\n").split("\n")) {
+    const m = SPEAKER_LINE.exec(line);
+    if (!m) continue;
+    found = true;
+    for (const w of m[2].split(/\s+/).filter(Boolean)) words.push({ text: w, speaker: `spk_${m[1].toLowerCase()}` });
+  }
+  return found ? words : [];
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GeminiError, GeminiTranscriber, parseInteraction } from "../scripts/asr/gemini";
+import { engineFor, GeminiError, GeminiTranscriber, parseInteraction, parseSpeakerLines } from "../scripts/asr/gemini";
 
 const KEY = "SECRET-KEY-123";
 const HOST = "https://generativelanguage.googleapis.com";
@@ -116,5 +116,68 @@ describe("Gemini-asiakas (kuvitellulla verkolla)", () => {
     expect(r.words).toEqual([]);
     expect(() => parseInteraction({ steps: [] })).toThrow(/ei löytynyt tekstiä/);
     expect(() => parseInteraction("ei olio")).toThrow(GeminiError);
+  });
+});
+
+describe("uusintojen näkyvyys", () => {
+  it("onRetry kutsutaan jokaisella odotuksella tilakoodin ja ajan kanssa; viimeinen epäonnistuminen kertoo virheen", async () => {
+    const infos: { status?: number; waitMs: number; attempt: number; maxRetries: number }[] = [];
+    const f = fake({ interactions: () => new Response(JSON.stringify({ error: { message: "high demand" } }), { status: 503 }) });
+    const err = await make(f, { maxRetries: 2, onRetry: (i) => void infos.push(i) })
+      .transcribeBytes(new Uint8Array([1]), "audio/ogg", "x", { languageCodes: ["fi-FI"], diarize: false, timestamps: false })
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(GeminiError);
+    expect(err.status).toBe(503);
+    expect(err.message).toContain("high demand");
+    expect(infos).toEqual([
+      { status: 503, waitMs: 2000, attempt: 1, maxRetries: 2 },
+      { status: 503, waitMs: 4000, attempt: 2, maxRetries: 2 },
+    ]);
+    expect(f.calls.some((c) => c.method === "DELETE")).toBe(true);
+  });
+});
+
+describe("yleismalli kehotteella", () => {
+  const PROMPT_REPLY = { output_text: "Speaker 1: Mikä tuo tänään vastaanotolle?\nSpeaker 2: Vatsakipua, ei kuumetta.\n**Speaker 1:** Onko ollut pahoinvointia?" };
+  const file = { uri: `${HOST}/v1beta/files/abc`, mimeType: "audio/ogg" };
+
+  it("moottori valitaan mallin nimestä; erillinen litterointimalli säilyy oletuksena", () => {
+    expect(engineFor("gemini-3.5-transcribe")).toBe("transcribe");
+    expect(engineFor("gemini-3.8-flash")).toBe("prompt");
+    expect(make(fake(), { model: "gemini-3.8-flash" }).engine).toBe("prompt");
+    expect(make(fake()).engine).toBe("transcribe");
+  });
+
+  it("pyyntö: tekstikehote ja ääni, ei transcription_config-asetuksia; kehote nimeää kielen ja kieltosanat", async () => {
+    const f = fake({ interactions: () => Response.json({ output_text: "Vatsakipua, ei kuumetta." }) });
+    const r = await make(f, { model: "gemini-3.8-flash" }).transcribe(file, { languageCodes: ["fi-FI"], diarize: false, timestamps: false });
+    const body = JSON.parse(f.calls.find((c) => c.url.endsWith("/interactions"))!.body as string);
+    expect(body.model).toBe("gemini-3.8-flash");
+    expect(body.generation_config).toBeUndefined();
+    expect(body.input[0].type).toBe("text");
+    expect(body.input[0].text).toContain("Finnish");
+    expect(body.input[0].text).toContain('"ei"');
+    expect(body.input[0].text).not.toContain("Speaker 1");
+    expect(body.input[1]).toEqual({ type: "audio", uri: file.uri, mime_type: "audio/ogg" });
+    expect(r.text).toBe("Vatsakipua, ei kuumetta.");
+    expect(r.words).toEqual([]);
+  });
+
+  it("puhujien erottelu pyydetään kehotteella ja rivit jäsentyvät sanoiksi puhujineen (myös lihavoidut tunnisteet)", async () => {
+    const f = fake({ interactions: () => Response.json(PROMPT_REPLY) });
+    const r = await make(f, { model: "gemini-3.8-flash" }).transcribe(file, { languageCodes: ["sv-SE"], diarize: true, timestamps: false });
+    const body = JSON.parse(f.calls.find((c) => c.url.endsWith("/interactions"))!.body as string);
+    expect(body.input[0].text).toContain("Swedish");
+    expect(body.input[0].text).toContain("Speaker 1:");
+    expect(r.words.filter((w) => w.speaker === "spk_1").map((w) => w.text).join(" ")).toBe("Mikä tuo tänään vastaanotolle? Onko ollut pahoinvointia?");
+    expect(r.words.filter((w) => w.speaker === "spk_2").map((w) => w.text).join(" ")).toBe("Vatsakipua, ei kuumetta.");
+    expect(r.words.some((w) => /speaker/i.test(w.text))).toBe(false);
+  });
+
+  it("rivit ilman puhujatunnisteita eivät tuota puhujatietoa; tuntematon vastausmuoto luetaan outputs-listasta", () => {
+    expect(parseSpeakerLines("Vain tekstiä\nEi tunnisteita")).toEqual([]);
+    expect(parseSpeakerLines("Puhuja A: moi")).toEqual([{ text: "moi", speaker: "spk_a" }]);
+    const r = parseInteraction({ outputs: [{ content: [{ text: "Moi vaan" }] }] });
+    expect(r.text).toBe("Moi vaan");
   });
 });

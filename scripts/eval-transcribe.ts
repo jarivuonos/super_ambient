@@ -3,7 +3,13 @@
 //   bun run eval:transcribe -- --list                       Näyttää esimerkkikeskustelut, joita voi lukea ääneen
 //   bun run eval:transcribe                                 Kuivaajo: näyttää tiedostot ja viitteet, EI lähetä mitään
 //   bun run eval:transcribe -- --send [--mode plain|diarize|both] [--lang fi-FI] [--timestamps]
-//                                      [--only id1,id2] [--dir local/asr/audio] [--model gemini-3.5-transcribe]
+//                                      [--only id1,id2] [--dir local/asr/audio] [--model gemini-3.5-transcribe] [--solo] [--retries 3] [--engine transcribe|prompt]
+//
+// --engine: oletus johdetaan mallin nimestä. Nimi, jossa on "transcribe", käyttää erillistä litterointimallia (transcription_config);
+//           muu malli (esim. gemini-3.8-flash) saa litterointipyynnön tekstikehotteena, ja puhujat pyydetään riveinä "Speaker N:".
+// --retries: uusintojen määrä, kun Google vastaa 429/5xx (esim. 503 "high demand"); odotus kasvaa 2, 4, 8 … s (enintään 60 s).
+// --solo: kaikki roolit luki yksi ääni. Puhujapisteytys ohitetaan, tila on oletuksena `plain`, ja `--mode both`
+//         kertoo lisäksi, montako puhujaa palvelu kuuli (pitäisi olla 1; useampi tarkoittaa yhden äänen jakamista).
 //
 // Äänitiedostot luetaan kansiosta local/asr/audio (git ei seuraa sitä). Nimeä tiedosto esimerkin tunnisteella
 // (esim. fi-vatsakipu.ogg) tai lisää viereen <nimi>.ref.txt (rivit "Lääkäri: teksti").
@@ -14,9 +20,10 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { extname, join, basename } from "node:path";
 import { SAMPLE_CONVERSATIONS } from "../lib/clinical/sample-conversations";
-import { GeminiError, GeminiTranscriber, type AsrResult } from "./asr/gemini";
+import { engineFor, GeminiError, GeminiTranscriber, type AsrResult, type Engine } from "./asr/gemini";
 import { tokenize } from "./asr/metrics";
 import { findReference, parseReferenceText, type Reference } from "./asr/references";
+import { loadRuns } from "./asr/results";
 import { scoreTranscript, type FileScore } from "./asr/score";
 
 const args = process.argv.slice(2);
@@ -53,7 +60,13 @@ if (flag("list")) {
 const dir = opt("dir", "local/asr/audio");
 const lang = opt("lang", "fi-FI");
 const model = opt("model", "gemini-3.5-transcribe");
-const mode = opt("mode", "both");
+const solo = flag("solo");
+const engine = opt("engine", engineFor(model)) as Engine;
+if (engine !== "transcribe" && engine !== "prompt") {
+  console.error("Virheellinen --engine (sallitut: transcribe, prompt).");
+  process.exit(1);
+}
+const mode = opt("mode", solo ? "plain" : "both");
 const only = opt("only", "").split(",").filter(Boolean);
 if (!["plain", "diarize", "both"].includes(mode)) {
   console.error('Virheellinen --mode (sallitut: plain, diarize, both).');
@@ -81,10 +94,11 @@ function collect(): Item[] {
     .sort((a, b) => a.base.localeCompare(b.base));
 }
 
+if (engine === "prompt" && flag("timestamps")) console.log("Huom: --timestamps ei vaikuta yleismallilla (sanakohtaisia aikaleimoja ei pyydetä kehotteella).");
 const items = collect();
 const modes = mode === "both" ? (["plain", "diarize"] as const) : ([mode] as const);
 
-console.log(`Kansio: ${dir} · kieli ${lang} · malli ${model} · tilat: ${modes.join(", ")}${flag("timestamps") ? " · sanakohtaiset aikaleimat" : ""}`);
+console.log(`Kansio: ${dir} · kieli ${lang} · malli ${model} (${engine === "transcribe" ? "erillinen litterointimalli" : "yleismalli + kehote"}) · tilat: ${modes.join(", ")}${flag("timestamps") ? " · sanakohtaiset aikaleimat" : ""}${solo ? " · SOLO (yksi ääni, puhujapisteytys ohitetaan)" : ""}`);
 if (!items.length) {
   console.log(`\nÄänitiedostoja ei löytynyt. Tallenna ne kansioon ${dir} (${Object.keys(MIME).join(", ")}). Katso --list.`);
   process.exit(0);
@@ -92,6 +106,77 @@ if (!items.length) {
 for (const it of items) {
   const refInfo = it.ref ? `viite: ${it.ref.title} (${it.ref.source}, ${it.ref.turns.length} vuoroa)` : "EI VIITETTÄ (litteroidaan, mutta ei pisteytetä)";
   console.log(`  ${it.base.padEnd(30)} ${(it.bytes / 1024).toFixed(0).padStart(6)} kt  ${it.mime.padEnd(11)} ${refInfo}`);
+}
+
+interface Row {
+  base: string;
+  mode: string;
+  ok: boolean;
+  seconds: number;
+  error?: string;
+  score?: FileScore;
+  chars?: number;
+  words?: number;
+}
+function printSummary(rows: Row[], modes: readonly string[]) {
+  console.log("\n=== YHTEENVETO ===");
+  for (const m of modes) {
+    const r = rows.filter((x) => x.mode === m);
+    const ok = r.filter((x) => x.ok);
+    const scored = ok.filter((x) => x.score);
+    const sum = (f: (s: FileScore) => number) => scored.reduce((a, x) => a + f(x.score!), 0);
+    const refWords = sum((s) => s.wer.refWords);
+    const errs = sum((s) => s.wer.substitutions + s.wer.deletions + s.wer.insertions);
+    console.log(`\n[${m}] onnistui ${ok.length}/${r.length}, pisteytetty ${scored.length}`);
+    if (scored.length) {
+      console.log(`  sanavirhe (WER, sanamäärällä painotettu): ${pct(refWords ? errs / refWords : null)}  (${errs} virhettä / ${refWords} sanaa)`);
+      const negRef = sum((s) => s.negations.refCount);
+      console.log(`  kieltosanat säilyneet: ${sum((s) => s.negations.preserved)}/${negRef} · keksittyjä tai muuttuneita: ${sum((s) => s.negations.spurious)}`);
+      const numRef = sum((s) => s.numbers.refCount);
+      console.log(`  numerot säilyneet: ${sum((s) => s.numbers.preserved)}/${numRef} · väärin tai ylimääräisiä: ${sum((s) => s.numbers.spurious)}`);
+      const refProp = sum((s) => s.agreement.refProposals);
+      const missing = sum((s) => s.agreement.missing.length);
+      console.log(`  rakenteistus (mock) viitteestä vs. litteraatista: ${refProp - missing}/${refProp} ehdotusta samoin · litteraatista ylimääräisiä kohteellisia (Observation/Condition): ${sum((s) => s.agreement.extraTargets)}`);
+      const sp = scored.filter((x) => x.score!.speakers);
+      if (solo && m === "diarize") {
+        for (const x of ok) {
+          const n = x.score?.speakerCount ?? null;
+          const share = x.score?.dominantSpeakerShare ?? null;
+          console.log(`  ${x.base}: puhujia tunnistettu ${n ?? "–"} (odotus 1)${n !== null && n > 1 ? `, suurimman osuus ${pct(share)} sanoista  ⚠ yksi ääni jaettiin useaksi puhujaksi` : ""}`);
+        }
+        if (!ok.some((x) => x.score?.speakerCount)) console.log("  Puhujatietoa ei saatu vastauksesta (katso tallennetut raakavastaukset).");
+      } else if (sp.length) {
+        const paired = sp.reduce((a, x) => a + x.score!.speakers!.pairedWords, 0);
+        const acc = sp.reduce((a, x) => a + (x.score!.speakers!.accuracy ?? 0) * x.score!.speakers!.pairedWords, 0);
+        console.log(`  puhujien kohdistus (sanatasolla): ${pct(paired ? acc / paired : null)}`);
+        for (const x of sp) {
+          const s = x.score!.speakers!;
+          const warn = s.patientAndRelativeMerged ? "  ⚠ potilas ja läheinen yhdistyivät samaksi puhujaksi" : "";
+          const rel = s.relativeAsPatientRate !== null ? ` · läheisen sanoista potilaalle: ${pct(s.relativeAsPatientRate)}` : "";
+          console.log(`    ${x.base}: ${pct(s.accuracy)} (${Object.keys(s.mapping).length} puhujaa tunnistettu)${rel}${warn}`);
+        }
+      } else if (m === "diarize") {
+        console.log("  Puhujatietoa ei saatu vastauksesta (katso tallennetut raakavastaukset).");
+      }
+    }
+    for (const x of r.filter((y) => !y.ok)) console.log(`  VIRHE ${x.base}: ${x.error}`);
+  }
+}
+
+// --rescore <tuloskansio>: pisteyttää tallennetut vastaukset uudelleen nykyisillä viitteillä; ei verkkoa, ei avainta.
+const rescoreDir = opt("rescore", "");
+if (rescoreDir) {
+  const refs = new Map(items.map((it) => [it.base, it.ref]));
+  const rescored: Row[] = [];
+  for (const run of loadRuns(rescoreDir)) {
+    const row: Row = { base: run.file, mode: run.mode, ok: run.result !== null, seconds: run.requestSeconds, error: run.error ?? undefined };
+    const ref = refs.get(run.file) ?? null;
+    if (run.result && ref) row.score = scoreTranscript(ref, run.result, run.language, { solo });
+    rescored.push(row);
+  }
+  console.log(`\nPISTEYTETÄÄN UUDELLEEN ${rescored.length} tallennettua vastausta kansiosta ${rescoreDir} (ei verkkoa, ei avainta).`);
+  printSummary(rescored, [...new Set(rescored.map((r) => r.mode))]);
+  process.exit(0);
 }
 
 if (!flag("send")) {
@@ -110,18 +195,15 @@ const outDir = join("local/asr/results", stamp);
 mkdirSync(outDir, { recursive: true });
 console.log(`\nLÄHETETÄÄN ${items.length * modes.length} pyyntöä Googlen Gemini API:lle. Tulokset: ${outDir}\n`);
 
-const gem = new GeminiTranscriber({ apiKey, model });
+const retries = Math.max(0, Math.min(10, Number(opt("retries", "3")) || 0));
+const gem = new GeminiTranscriber({
+  apiKey,
+  model,
+  engine,
+  maxRetries: retries,
+  onRetry: (i) => console.log(`    … ${i.status ? `HTTP ${i.status}` : "yhteysvirhe"}, odotetaan ${(i.waitMs / 1000).toFixed(0)} s ja yritetään uudelleen (${i.attempt}/${i.maxRetries})`),
+});
 
-interface Row {
-  base: string;
-  mode: string;
-  ok: boolean;
-  seconds: number;
-  error?: string;
-  score?: FileScore;
-  chars?: number;
-  words?: number;
-}
 const rows: Row[] = [];
 
 for (const it of items) {
@@ -135,7 +217,7 @@ for (const it of items) {
       row.ok = true;
       row.chars = result.text.length;
       row.words = result.words.length;
-      if (it.ref) row.score = scoreTranscript(it.ref, result, lang);
+      if (it.ref) row.score = scoreTranscript(it.ref, result, lang, { solo });
     } catch (e) {
       row.error = e instanceof GeminiError ? e.message : `Odottamaton virhe: ${(e as Error).message.slice(0, 200)}`;
     }
@@ -146,41 +228,7 @@ for (const it of items) {
   }
 }
 
-console.log("\n=== YHTEENVETO ===");
-for (const m of modes) {
-  const r = rows.filter((x) => x.mode === m);
-  const ok = r.filter((x) => x.ok);
-  const scored = ok.filter((x) => x.score);
-  const sum = (f: (s: FileScore) => number) => scored.reduce((a, x) => a + f(x.score!), 0);
-  const refWords = sum((s) => s.wer.refWords);
-  const errs = sum((s) => s.wer.substitutions + s.wer.deletions + s.wer.insertions);
-  console.log(`\n[${m}] onnistui ${ok.length}/${r.length}, pisteytetty ${scored.length}`);
-  if (scored.length) {
-    console.log(`  sanavirhe (WER, sanamäärällä painotettu): ${pct(refWords ? errs / refWords : null)}  (${errs} virhettä / ${refWords} sanaa)`);
-    const negRef = sum((s) => s.negations.refCount);
-    console.log(`  kieltosanat säilyneet: ${sum((s) => s.negations.preserved)}/${negRef} · keksittyjä tai muuttuneita: ${sum((s) => s.negations.spurious)}`);
-    const numRef = sum((s) => s.numbers.refCount);
-    console.log(`  numerot säilyneet: ${sum((s) => s.numbers.preserved)}/${numRef} · väärin tai ylimääräisiä: ${sum((s) => s.numbers.spurious)}`);
-    const refProp = sum((s) => s.agreement.refProposals);
-    const missing = sum((s) => s.agreement.missing.length);
-    console.log(`  rakenteistus (mock) viitteestä vs. litteraatista: ${refProp - missing}/${refProp} ehdotusta samoin · litteraatista ylimääräisiä kohteellisia (Observation/Condition): ${sum((s) => s.agreement.extraTargets)}`);
-    const sp = scored.filter((x) => x.score!.speakers);
-    if (sp.length) {
-      const paired = sp.reduce((a, x) => a + x.score!.speakers!.pairedWords, 0);
-      const acc = sp.reduce((a, x) => a + (x.score!.speakers!.accuracy ?? 0) * x.score!.speakers!.pairedWords, 0);
-      console.log(`  puhujien kohdistus (sanatasolla): ${pct(paired ? acc / paired : null)}`);
-      for (const x of sp) {
-        const s = x.score!.speakers!;
-        const warn = s.patientAndRelativeMerged ? "  ⚠ potilas ja läheinen yhdistyivät samaksi puhujaksi" : "";
-        const rel = s.relativeAsPatientRate !== null ? ` · läheisen sanoista potilaalle: ${pct(s.relativeAsPatientRate)}` : "";
-        console.log(`    ${x.base}: ${pct(s.accuracy)} (${Object.keys(s.mapping).length} puhujaa tunnistettu)${rel}${warn}`);
-      }
-    } else if (m === "diarize") {
-      console.log("  Puhujatietoa ei saatu vastauksesta (katso tallennetut raakavastaukset).");
-    }
-  }
-  for (const x of r.filter((y) => !y.ok)) console.log(`  VIRHE ${x.base}: ${x.error}`);
-}
+printSummary(rows, modes);
 writeFileSync(join(outDir, "summary.json"), JSON.stringify({ lang, model, modes, rows }, null, 2));
 console.log(`\nTulokset ja raakavastaukset: ${outDir}`);
 console.log("Huom: pieni, tekijän itse tekemä joukko; luvut ovat suuntaa antavia. Hyväksymisrajoja ei ole sovittu.");

@@ -11,6 +11,9 @@ export interface FileScore {
   negations: CriticalScore;
   numbers: CriticalScore;
   speakers: SpeakerScore | null;
+  /** Montako eri puhujaa litteraatissa on (null, jos puhujatietoa ei ole) ja suurimman puhujan osuus sanoista. */
+  speakerCount: number | null;
+  dominantSpeakerShare: number | null;
   /** Mock-rakenteistuksen ehdotukset viitteestä vs. litteraatista (ei Jev-kutsuja). */
   agreement: Agreement;
 }
@@ -38,7 +41,11 @@ export function labelledHypothesis(result: AsrResult, mapping: Record<string, st
   return lines.join("\n");
 }
 
-export function scoreTranscript(ref: Reference, result: AsrResult, lang: string): FileScore {
+/**
+ * `solo`: kaikki roolit luki yksi ääni. Silloin puhujapisteytys ohitetaan, ja ehdotukset vertaillaan ilman
+ * rooleja, jotta puuttuvat roolit eivät näy virheinä; puhujamäärä kertoo silti, jakoiko palvelu yhden äänen useaksi.
+ */
+export function scoreTranscript(ref: Reference, result: AsrResult, lang: string, opts: { solo?: boolean } = {}): FileScore {
   const refTokens: string[] = [];
   const refWho: string[] = [];
   for (const t of ref.turns) {
@@ -65,12 +72,19 @@ export function scoreTranscript(ref: Reference, result: AsrResult, lang: string)
   }
 
   const ops = align(refTokens, hypTokens);
-  const speakers = speakerScore(refWho, hypSpeaker, ops);
+  const speakers = opts.solo ? null : speakerScore(refWho, hypSpeaker, ops);
+  const perSpeaker = new Map<string, number>();
+  for (const w of result.words) if (w.speaker !== undefined) perSpeaker.set(w.speaker, (perSpeaker.get(w.speaker) ?? 0) + 1);
+  const spoken = [...perSpeaker.values()].reduce((a, b) => a + b, 0);
+  const refText = opts.solo ? ref.turns.map((t) => t.text).join("\n") : referenceText(ref);
+  const hypText = opts.solo ? result.text || result.words.map((w) => w.text).join(" ") : labelledHypothesis(result, speakers?.mapping);
   return {
     wer: wordErrorRate(ops, refTokens.length, hypTokens.length),
     negations: negationScore(refTokens, hypTokens, ops, lang),
     numbers: numberScore(refTokens, hypTokens, ops),
     speakers,
-    agreement: compareKeys(proposalKeys(referenceText(ref)), proposalKeys(labelledHypothesis(result, speakers?.mapping))),
+    speakerCount: perSpeaker.size || null,
+    dominantSpeakerShare: spoken ? Math.max(...perSpeaker.values()) / spoken : null,
+    agreement: compareKeys(proposalKeys(refText), proposalKeys(hypText)),
   };
 }

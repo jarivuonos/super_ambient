@@ -76,4 +76,38 @@ describe("yhden tiedoston pisteytys", () => {
     expect(labelledHypothesis(r, undefined)).toBe("a b c");
     expect(referenceText(findReference(withNeg.id)!).startsWith(`${findReference(withNeg.id)!.turns[0].who}:`)).toBe(true);
   });
+
+  it("solo: puhujapisteytys ohitetaan, mutta puhujamäärä kertoo yhden äänen: 1 puhuja, 100 % osuus", () => {
+    const ref = findReference(withNeg.id)!;
+    const p = perfect(withNeg.id);
+    const oneVoice = { ...p, words: p.words.map((w) => ({ ...w, speaker: "spk_1" })) };
+    const s = scoreTranscript(ref, oneVoice, "fi-FI", { solo: true });
+    expect(s.speakers).toBeNull();
+    expect(s.speakerCount).toBe(1);
+    expect(s.dominantSpeakerShare).toBe(1);
+    expect(s.wer.wer).toBe(0);
+    // Ilman rooleja vertailtuna täydellinen litteraatti tuottaa samat ehdotukset kuin viite.
+    expect(s.agreement.recall).toBe(1);
+    expect(s.agreement.precision).toBe(1);
+  });
+
+  it("solo: yhden äänen jakaminen kahdeksi puhujaksi näkyy puhujamäärässä ja osuudessa", () => {
+    const ref = findReference(withNeg.id)!;
+    const p = perfect(withNeg.id);
+    const split = { ...p, words: p.words.map((w, i) => ({ ...w, speaker: i % 2 ? "spk_2" : "spk_1" })) };
+    const s = scoreTranscript(ref, split, "fi-FI", { solo: true });
+    expect(s.speakerCount).toBe(2);
+    expect(s.dominantSpeakerShare).toBeGreaterThanOrEqual(0.5);
+    expect(s.dominantSpeakerShare).toBeLessThan(0.6);
+    expect(s.speakers).toBeNull();
+  });
+
+  it("ilman puhujatietoa puhujamäärä on null; ilman solo-valitsinta puhujapisteytys säilyy ennallaan", () => {
+    const ref = findReference(withNeg.id)!;
+    const text = perfect(withNeg.id).text;
+    const none = scoreTranscript(ref, { text, words: [], raw: {} }, "fi-FI", { solo: true });
+    expect(none.speakerCount).toBeNull();
+    expect(none.dominantSpeakerShare).toBeNull();
+    expect(scoreTranscript(ref, perfect(withNeg.id), "fi-FI").speakers?.accuracy).toBe(1);
+  });
 });
