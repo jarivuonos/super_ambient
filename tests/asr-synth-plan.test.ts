@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SAMPLE_CONVERSATIONS } from "../lib/clinical/sample-conversations";
 import { findReference } from "../scripts/asr/references";
-import { DEFAULT_VOICES, GEMINI_VOICES, mergeSameSpeaker, parseVoiceMap, planSummary, planTurns, turnCacheKey, turnGaps } from "../scripts/asr/synth-plan";
+import { DEFAULT_VOICES, GEMINI_VOICES, mergeSameSpeaker, parseVoiceMap, planSummary, planTurns, splitByCache, turnCacheKey, turnGaps } from "../scripts/asr/synth-plan";
 
 describe("dialogin puhesynteesin suunnittelu", () => {
   it("äänikartta: oletukset, ylikirjoitus (isoilla ja pienillä kirjaimilla), tuntematon ääni ja virheellinen muoto antavat virheen", () => {
@@ -60,5 +60,17 @@ describe("saman puhujan vuorojen yhdistäminen", () => {
     expect(merged.length).toBeLessThan(turns.length);
     expect(planSummary(merged).words).toBe(planSummary(turns).words);
     for (let i = 1; i < merged.length; i++) expect(merged[i].who).not.toBe(merged[i - 1].who);
+  });
+});
+
+describe("välimuistin mukaan jaetut vuorot", () => {
+  it("jakaa vuorot järjestystä muuttamatta; ei välimuistia -> kaikki puuttuvat", () => {
+    const turns = planTurns(findReference("t01")!, DEFAULT_VOICES);
+    const last = turns[turns.length - 1];
+    const { included, skipped } = splitByCache(turns, (t) => t !== last);
+    expect(skipped).toEqual([last]);
+    expect(included).toHaveLength(turns.length - 1);
+    expect(included.map((t) => t.text)).toEqual(turns.slice(0, -1).map((t) => t.text));
+    expect(splitByCache(turns, () => false).included).toEqual([]);
   });
 });

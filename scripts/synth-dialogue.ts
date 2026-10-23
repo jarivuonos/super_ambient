@@ -6,7 +6,7 @@
 //
 // Valitsimet: --all (kaikki esimerkit) · --out local/asr/tts · --lang fi (tiedostonimen etuliite) ·
 //   --voices "Lääkäri=Charon,Potilas=Kore,Läheinen=Fenrir" · --gap 700 (ms puhujan vaihtuessa) · --style "ohje" ·
-//   --model gemini-3.8-flash-tts · --retries 3 · --merge (saman puhujan peräkkäiset vuorot yhdeksi pyynnöksi)
+//   --model gemini-3.8-flash-tts · --retries 3 · --cached-only (liitä vain välimuistissa olevat vuorot, ei verkkoa eikä avainta) · --merge (saman puhujan peräkkäiset vuorot yhdeksi pyynnöksi)
 //
 // Ilmaisen tason päiväkiintiö on pieni (gemini-3.8-flash-tts: 10 pyyntöä/vrk): --merge vähentää pyyntöjä, ja välimuisti säästää uusinnoissa.
 // Huom: --merge muuttaa pyynnön tekstiä, joten ilman sitä tehdyt välimuistin puheenvuorot eivät päde sen kanssa (ja päinvastoin).
@@ -19,7 +19,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SAMPLE_CONVERSATIONS } from "../lib/clinical/sample-conversations";
 import { findReference } from "./asr/references";
-import { mergeSameSpeaker, planSummary, planTurns, parseVoiceMap, turnCacheKey, turnGaps } from "./asr/synth-plan";
+import { mergeSameSpeaker, planSummary, planTurns, parseVoiceMap, splitByCache, turnCacheKey, turnGaps } from "./asr/synth-plan";
 import { DEFAULT_TTS_MODEL, GeminiSpeaker } from "./asr/tts";
 import { GeminiError } from "./asr/gemini";
 import { durationSeconds, joinWav } from "./asr/wav";
@@ -72,6 +72,29 @@ for (const { id, ref } of refs) {
   const roles = [...new Set(turns.map((t) => `${t.who}=${t.voice}`))].join(", ");
   console.log(`  ${id.padEnd(14)} ${sum.turns} vuoroa, ${sum.chars} merkkiä, ~${sum.estMinutes.toFixed(1)} min · ${roles}`);
   requests += sum.turns;
+}
+
+// --cached-only: liitä pelkästään välimuistissa olevat vuorot (ei verkkoa, ei avainta). Tulos ja sen viite (.ref.txt) kattavat vain nämä vuorot,
+// ja tiedoston nimi on <lang>-<tunniste>-osittainen, jotta se ei törmää koko dialogin tiedostoon eikä sen viitteeseen.
+if (flag("cached-only")) {
+  mkdirSync(out, { recursive: true });
+  for (const { id, ref } of refs) {
+    const all = flag("merge") ? mergeSameSpeaker(planTurns(ref!, voices)) : planTurns(ref!, voices);
+    const cachePath = (t: (typeof all)[number]) => join(out, "parts", `${turnCacheKey(model, t.voice, style, t.text)}.wav`);
+    const { included, skipped } = splitByCache(all, (t) => existsSync(cachePath(t)));
+    if (!included.length) {
+      console.log(`  ${id}: välimuistissa ei ole yhtään vuoroa (aja ensin --send).`);
+      continue;
+    }
+    const joined = joinWav(included.map((t) => new Uint8Array(readFileSync(cachePath(t)))), turnGaps(included.map((t) => t.who), gap));
+    const base = `${lang}-${id}-osittainen`;
+    writeFileSync(join(out, `${base}.wav`), joined);
+    writeFileSync(join(out, `${base}.ref.txt`), `${included.map((t) => `${t.who}: ${t.text}`).join("\n")}\n`);
+    console.log(`  ${id}: ${included.length}/${all.length} vuoroa liitetty → ${join(out, `${base}.wav`)} (${durationSeconds(joined).toFixed(1)} s), viite ${base}.ref.txt`);
+    for (const t of skipped) console.log(`    puuttuu (ei mukana): ${t.who} – ${t.text}`);
+  }
+  console.log(`\nEi lähetetty mitään. Litterointikoe: bun run eval:transcribe -- --dir ${out} --mode both`);
+  process.exit(0);
 }
 
 if (!flag("send")) {

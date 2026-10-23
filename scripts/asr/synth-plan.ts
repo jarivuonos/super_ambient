@@ -53,6 +53,14 @@ export function mergeSameSpeaker(turns: PlannedTurn[]): PlannedTurn[] {
   return out;
 }
 
+/** Jaa vuorot välimuistissa oleviin ja puuttuviin. Puuttuvat jätetään pois, jolloin äänestä ja viitteestä tulee yhtenäinen osa dialogista. */
+export function splitByCache(turns: PlannedTurn[], isCached: (t: PlannedTurn) => boolean): { included: PlannedTurn[]; skipped: PlannedTurn[] } {
+  const included: PlannedTurn[] = [];
+  const skipped: PlannedTurn[] = [];
+  for (const t of turns) (isCached(t) ? included : skipped).push(t);
+  return { included, skipped };
+}
+
 export function planSummary(turns: PlannedTurn[]): { turns: number; chars: number; words: number; estMinutes: number } {
   const words = turns.reduce((n, t) => n + tokenize(t.text).length, 0);
   return { turns: turns.length, chars: turns.reduce((n, t) => n + t.text.length, 0), words, estMinutes: words / 140 };
