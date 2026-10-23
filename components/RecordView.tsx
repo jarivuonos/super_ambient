@@ -185,7 +185,14 @@ function Recorder({ transcriptionConfigured, transcriptionText, onTranscript, gu
     setTiming((res.ok ? res.data.timings : (res.error.detail as { timings?: StageTimings } | undefined)?.timings) ?? null);
     if (!res.ok) {
       // Vercel hylkää yli ~4,5 Mt:n pyynnöt ennen kuin sovellus näkee ne.
-      setError(res.error.status === 413 ? "Äänite on liian suuri tälle palvelimelle (Vercelissä raja on noin 4,5 Mt eli runsaat 4 minuuttia). Äänitä lyhyempi pätkä tai käytä paikallista ajoa." : res.error.message);
+      // Vercel katkaisee pyynnön aikarajan jälkeen (Hobby: 300 s) ja palauttaa 504; Google voi silti olla yhä käsittelemässä ääntä.
+      setError(
+        res.error.status === 413
+          ? "Äänite on liian suuri tälle palvelimelle (Vercelissä raja on noin 4,5 Mt eli runsaat 4 minuuttia). Äänitä lyhyempi pätkä tai käytä paikallista ajoa."
+          : res.error.status === 504
+            ? "Palvelin katkaisi pyynnön aikarajan vuoksi (Vercelissä enintään 300 s Hobby-tasolla), koska litterointi kesti liian kauan. Yritä uudelleen, äänitä lyhyempi pätkä tai käytä paikallista ajoa."
+            : res.error.message,
+      );
     } else onTranscript(res.data.transcript);
   }
 
