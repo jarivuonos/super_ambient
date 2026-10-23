@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { engineFor, GeminiError, GeminiTranscriber, parseInteraction, parseSpeakerLines } from "../scripts/asr/gemini";
+import { engineFor, GeminiError, GeminiTranscriber, parseInteraction, parseSpeakerLines, transcriptionPrompt } from "../scripts/asr/gemini";
 
 const KEY = "SECRET-KEY-123";
 const HOST = "https://generativelanguage.googleapis.com";
@@ -179,5 +179,34 @@ describe("yleismalli kehotteella", () => {
     expect(parseSpeakerLines("Puhuja A: moi")).toEqual([{ text: "moi", speaker: "spk_a" }]);
     const r = parseInteraction({ outputs: [{ content: [{ text: "Moi vaan" }] }] });
     expect(r.text).toBe("Moi vaan");
+  });
+});
+
+describe("numerot numeroina (--digits)", () => {
+  const file = { uri: `${HOST}/v1beta/files/abc`, mimeType: "audio/ogg" };
+
+  it("kehote pyytää numeroita vain, kun valinta on päällä; erottelupyyntö säilyy mukana", () => {
+    expect(transcriptionPrompt(["fi-FI"], false)).not.toMatch(/digits/);
+    const d = transcriptionPrompt(["fi-FI"], false, true);
+    expect(d).toContain("as digits");
+    expect(d).toContain("never spelled out as words");
+    const both = transcriptionPrompt(["sv-SE"], true, true);
+    expect(both).toContain("as digits");
+    expect(both).toContain("Speaker 1:");
+    expect(both).toContain("Swedish");
+  });
+
+  it("yleismallin pyyntöön kehote tulee mukaan; erillisen litterointimallin pyyntö ei muutu", async () => {
+    const p = fake({ interactions: () => Response.json({ output_text: "Syke 78." }) });
+    await make(p, { model: "gemini-3.8-flash" }).transcribe(file, { languageCodes: ["fi-FI"], diarize: false, timestamps: false, digits: true });
+    const prompt = JSON.parse(p.calls.find((c) => c.url.endsWith("/interactions"))!.body as string).input[0].text;
+    expect(prompt).toContain("as digits");
+
+    const a = fake();
+    const b = fake();
+    await make(a).transcribe(file, { languageCodes: ["fi-FI"], diarize: false, timestamps: false });
+    await make(b).transcribe(file, { languageCodes: ["fi-FI"], diarize: false, timestamps: false, digits: true });
+    const body = (f: ReturnType<typeof fake>) => f.calls.find((c) => c.url.endsWith("/interactions"))!.body;
+    expect(body(b)).toBe(body(a));
   });
 });

@@ -35,6 +35,8 @@ export interface TranscribeOptions {
   diarize: boolean;
   /** Sanakohtaiset aikaleimat; voivat heikentää tarkkuutta. */
   timestamps: boolean;
+  /** Pyydä numerot, mittaukset, annokset ja päivämäärät numeroina (vain kehotetilassa). */
+  digits?: boolean;
 }
 
 /** "transcribe": erillinen litterointimalli (transcription_config). "prompt": yleismalli, jolle litterointi pyydetään tekstikehotteella. */
@@ -45,12 +47,15 @@ export const engineFor = (model: string): Engine => (/transcribe/i.test(model) ?
 const LANGUAGE_NAMES: Record<string, string> = { fi: "Finnish", sv: "Swedish", en: "English" };
 
 /** Kehote yleismallille. Diarisointi pyydetään riveinä "Speaker N: teksti", jotka jäsennetään sanoiksi puhujineen. */
-export function transcriptionPrompt(languageCodes: string[], diarize: boolean): string {
+export function transcriptionPrompt(languageCodes: string[], diarize: boolean, digits = false): string {
   const lang = LANGUAGE_NAMES[(languageCodes[0] ?? "fi").slice(0, 2).toLowerCase()] ?? languageCodes[0];
   const base = `Transcribe the speech in this audio recording verbatim. The language is ${lang}. Do not summarize, translate, correct, or add anything, and write down exactly what was said, including negations such as "ei" or "inte". Output only the transcript, with no introduction or comments.`;
-  return diarize
-    ? `${base} Identify the distinct speakers and put each speaker turn on its own line, starting with the label "Speaker 1:", "Speaker 2:" and so on (use the same number for the same voice throughout).`
+  const withDigits = digits
+    ? `${base} Write all numbers, measurements, doses and dates as digits (for example "145/90", "5 mg", "38,5", "12.5.2019"), never spelled out as words.`
     : base;
+  return diarize
+    ? `${withDigits} Identify the distinct speakers and put each speaker turn on its own line, starting with the label "Speaker 1:", "Speaker 2:" and so on (use the same number for the same voice throughout).`
+    : withDigits;
 }
 
 export interface GeminiOptions {
@@ -71,15 +76,14 @@ const RETRYABLE = new Set([429, 500, 502, 503, 504]);
 type Json = Record<string, unknown>;
 const isObj = (v: unknown): v is Json => typeof v === "object" && v !== null && !Array.isArray(v);
 
-export class GeminiTranscriber {
-  private base: string;
-  private f: typeof fetch;
-  private sleep: (ms: number) => Promise<void>;
-  private retries: number;
-  readonly engine: Engine;
+/** Yhteinen HTTP-pohja: avain, uusinnat (429/5xx) ja virheviestit ilman avainta. Litterointi ja puhesynteesi perivät tämän. */
+export class GeminiHttp {
+  protected base: string;
+  protected f: typeof fetch;
+  protected sleep: (ms: number) => Promise<void>;
+  protected retries: number;
 
-  constructor(private o: GeminiOptions) {
-    this.engine = o.engine ?? engineFor(o.model);
+  constructor(protected o: GeminiOptions) {
     this.base = (o.baseUrl ?? GEMINI_BASE).replace(/\/+$/, "");
     this.f = o.fetchImpl ?? fetch;
     this.sleep = o.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
@@ -87,11 +91,11 @@ export class GeminiTranscriber {
   }
 
   /** Virheviesti ilman avainta ja lyhennettynä. */
-  private safe(text: string): string {
+  protected safe(text: string): string {
     return text.split(this.o.apiKey).join("***").replace(/\s+/g, " ").slice(0, 300);
   }
 
-  private async errorFrom(res: Response): Promise<GeminiError> {
+  protected async errorFrom(res: Response): Promise<GeminiError> {
     let detail = "";
     try {
       const body = (await res.json()) as { error?: { message?: string } };
@@ -103,7 +107,7 @@ export class GeminiTranscriber {
   }
 
   /** Pyyntö uusinnoin: 429 ja 5xx odotetaan ja yritetään uudelleen (Retry-After huomioiden, enintään 60 s). */
-  private async request(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  protected async request(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
     for (let attempt = 0; ; attempt++) {
       let res: Response;
       try {
@@ -124,8 +128,18 @@ export class GeminiTranscriber {
     }
   }
 
-  private headers(extra: Record<string, string> = {}): Record<string, string> {
+  protected headers(extra: Record<string, string> = {}): Record<string, string> {
     return { "x-goog-api-key": this.o.apiKey, ...extra };
+  }
+
+}
+
+export class GeminiTranscriber extends GeminiHttp {
+  readonly engine: Engine;
+
+  constructor(o: GeminiOptions) {
+    super(o);
+    this.engine = o.engine ?? engineFor(o.model);
   }
 
   /** Lataa tiedoston Files API:iin (resumable-protokolla). Palauttaa tiedoston osoitteen ja nimen. */
@@ -214,7 +228,7 @@ export class GeminiTranscriber {
         body: JSON.stringify({
           model: this.o.model,
           input: [
-            { type: "text", text: transcriptionPrompt(opt.languageCodes, opt.diarize) },
+            { type: "text", text: transcriptionPrompt(opt.languageCodes, opt.diarize, opt.digits) },
             { type: "audio", uri: file.uri, mime_type: file.mimeType },
           ],
         }),
